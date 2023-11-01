@@ -23,7 +23,7 @@ for filename in cks_filenames:
     id_starname = file[0].header['TARGNAME']
     id_starname = id_starname.replace('CK', 'K')
     id_starname = id_starname.replace('k', 'K')
-    spectrum_fileroot = filename.split('j')[1].split('.fits')[0]
+    spectrum_fileroot = str(filename.split('j')[1].split('.fits')[0])
     id_starnames.append(id_starname)
     spectrum_fileroots.append(spectrum_fileroot)
 

@@ -5,18 +5,19 @@ import matplotlib.pyplot as plt
 import pywt
 
 # load wavelet data and define spectrum region for decomposition
-w_full = fits.open('./data/w_to_resample_to_i_chip.fits')[0].data
+# w_full = fits.open('./data/w_to_resample_to_r_chip.fits')[0].data
+w = fits.open('./data/w_to_resample_to_r_chip.fits')[0].data
 flux_2019 = fits.open(
-    './data/kepler1656_spectra/CK00367_2019_ij351.570_adj_resampled.fits')[1].data['s']
+    './data/kepler1656_spectra/CK00367_2019_rj351.570_adj_resampled.fits')[1].data['s']
 flux_2022 = fits.open(
-    './data/kepler1656_spectra/CK00367_2022_ij487.76_adj_resampled.fits')[1].data['s']
+    './data/kepler1656_spectra/CK00367_2022_rj487.76_adj_resampled.fits')[1].data['s']
 
-# slice + normalize flux, require even number of elements
-# (this can be replaced with an interpolation to accommodate more orders)
-wavedec_idx = (w_full>6670) & (w_full<6785)
-w = w_full[wavedec_idx][:-1]
-flux_2019 = flux_2019[wavedec_idx][:-1] - 1
-flux_2022 = flux_2022[wavedec_idx][:-1] - 1
+# # slice + normalize flux, require even number of elements
+# # (this can be replaced with an interpolation to accommodate more orders)
+# wavedec_idx = (w_full>6670) & (w_full<6785)
+# w = w_full[wavedec_idx][:-1]
+# flux_2019 = flux_2019[wavedec_idx][:-1] - 1
+# flux_2022 = flux_2022[wavedec_idx][:-1] - 1
 
 # define tranform function inputs
 wt_kwargs = {'mode':'zero', 'axis':-1}
@@ -32,6 +33,8 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 		wavelet_wavedec (str): name of mother wavelet in decomposition/reconstruction 
 								('sym2', 'haar', etc.)
 		levels (list): list of wavelet decomposition levels to return (e.g., [1,2,3])
+						note that the first possible level is 0, and the last is set by
+						pywt..dwt_max_level()
 
 	Returns:
 		flux_waverec (np.array): normalized reconstructed flux, including only decomposition
@@ -49,9 +52,21 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 	flux_waverec = pywt.waverec(coeffs, wavelet_wavedec, **wt_kwargs)
 	return flux_waverec
 
-
 # plot the difference between the original + inverse transform
 def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
+	"""
+	Plot the original spectrum and reconstructed spectrum from coefficients output 
+	from the spectrum's wavelet decomposition at each individual level, 
+	along with residuals between the two. This is to test how much information 
+	is lost in the wavelet decomposition - small residuals indicate 
+	that most infromation is preserved.
+
+	Args:
+		flux (np.array): normalized flux for decomposition (must have even # of elements)
+		wavelet_wavedec (str): name of mother wavelet in decomposition/reconstruction 
+								('sym2', 'haar', etc.)
+		object_name (str): object identifier to go in the plot title (e.g., 'CK00367')
+	"""
 	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
 	all_level_flux_waverec = flux_waverec(
 		flux, 
@@ -73,6 +88,16 @@ def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
 
 # plot different orders
 def plot_flux_waverec_levels(flux, wavelet_wavedec, object_name):
+	"""
+	Plot the reconstructed spectrum from coefficients output 
+	from the spectrum's wavelet decomposition at each individual level.
+
+	Args:
+		flux (np.array): normalized flux for decomposition (must have even # of elements)
+		wavelet_wavedec (str): name of mother wavelet in decomposition/reconstruction 
+								('sym2', 'haar', etc.)
+		object_name (str): object identifier to go in the plot title (e.g., 'CK00367')
+	"""
 	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
 	n_levels = max_level + 1
 	fig, axes = plt.subplots(n_levels+1, 1, sharex=True, sharey=False, 
@@ -80,7 +105,7 @@ def plot_flux_waverec_levels(flux, wavelet_wavedec, object_name):
 	plt.rcParams['font.size']=8
 	axes[0].plot(w, flux, color='k', lw=0.5)
 	axes[0].text(6760, 0.1, 'original signal')
-	axes[0].set_ylim(-0.6,0.4)
+	#axes[0].set_ylim(-0.6,0.4)
 	for level in range(0, n_levels):
 		level_flux_waverec = flux_waverec(
 			flux, 

@@ -5,7 +5,7 @@ import numpy as np
 from astropy.io import fits
 
 # shift spectra with specmatch command line interface
-spectrum_paths = glob.glob('./data/kepler1656_spectra/*ij*.fits')
+spectrum_paths = glob.glob('./data/kepler1656_spectra/*rj*.fits')
 for spectrum_path in spectrum_paths:
 	subprocess.run(['smemp','shift','-d','./data/cks-spectra','-o','./data/kepler1656_spectra','-f',spectrum_path])
 
@@ -14,10 +14,10 @@ print('finished shifting spectra')
 print('resampling spectra...')
 
 # load wavelength scale
-w_to_resample_to = fits.open('./data/w_to_resample_to_i_chip.fits')[0].data
+w_to_resample_to = fits.open('./data/w_to_resample_to_r_chip.fits')[0].data
 
 # resample spectra onto uniform wavelength scale
-shifted_spectrum_paths = glob.glob('./data/kepler1656_spectra/*ij*_adj.fits')
+shifted_spectrum_paths = glob.glob('./data/kepler1656_spectra/*rj*_adj.fits')
 for spectrum_path in shifted_spectrum_paths:
 	# load spectrum
 	shifted_spec = specmatchemp.spectrum.read_fits(spectrum_path, wavlim=None)

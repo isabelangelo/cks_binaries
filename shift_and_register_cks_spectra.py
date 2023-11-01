@@ -17,15 +17,15 @@ import numpy as np
 from astropy.io import fits
 
 # shift spectra with specmatch command line interface
-spectrum_paths = glob.glob('./data/cks-spectra/*rj*.fits')
-for spectrum_path in spectrum_paths:
-	subprocess.run(['smemp','shift','-d','./data/cks-spectra','-o','./data/cks-spectra_shifted_r','-f',spectrum_path])
+# spectrum_paths = glob.glob('./data/cks-spectra/*rj*.fits')
+# for spectrum_path in spectrum_paths:
+# 	subprocess.run(['smemp','shift','-d','./data/cks-spectra','-o','./data/cks-spectra_shifted_r','-f',spectrum_path])
 
-print('')
-print('finished shifting spectra')
+# print('')
+# print('finished shifting spectra')
 
 # information about r chip spectra
-shifted_filenames = glob.glob('./data/cks-spectra_shifted_r/rj*.fits')
+shifted_filenames = glob.glob('./data/cks-spectra_shifted_r/*rj*.fits')
 n_orders = 16 # HIRES r chip
 n_pixels = 4021 # pixels per order in HIRES spectrum
 
