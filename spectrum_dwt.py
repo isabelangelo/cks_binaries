@@ -1,36 +1,43 @@
-# to do : change plots to use gridspec
-
+# to do : I feel like the plotting code could be better organized
 from astropy.io import fits
 import numpy as np
 import matplotlib.pyplot as plt
 import pywt
 
-# load data
+# load wavelet data and define spectrum region for decomposition
 w_full = fits.open('./data/w_to_resample_to_i_chip.fits')[0].data
-idx = (w_full>6670) & (w_full<6785)
-w = w_full[idx]
-example_flux = fits.open(
-    './data/kepler1656_spectra/CK00367_2019_ij351.570_adj_resampled.fits')[1].data['s'][idx]
+flux_2019 = fits.open(
+    './data/kepler1656_spectra/CK00367_2019_ij351.570_adj_resampled.fits')[1].data['s']
+flux_2022 = fits.open(
+    './data/kepler1656_spectra/CK00367_2022_ij487.76_adj_resampled.fits')[1].data['s']
 
-# normalize flux + require even number of elements
-# (this may be replaced with an interpolation to accommodate more orders)
-w = w[:-1]
-example_flux = example_flux[:-1] - 1
+# slice + normalize flux, require even number of elements
+# (this can be replaced with an interpolation to accommodate more orders)
+wavedec_idx = (w_full>6670) & (w_full<6785)
+w = w_full[wavedec_idx][:-1]
+flux_2019 = flux_2019[wavedec_idx][:-1] - 1
+flux_2022 = flux_2022[wavedec_idx][:-1] - 1
 
 # define tranform function inputs
 wt_kwargs = {'mode':'zero', 'axis':-1}
 
-
-# select wavelet type
-# note: use pywt.wavelist(kind='discrete') to see wavelet options
-# wavelet_wavedec = 'sym2' # chooses 2.2
-# print('selected wavelet {}'.format(wavelet_wavedec))
-
-# n_wavedec_levels = pywt.dwt_max_level(len(example_flux), wavelet_wavedec)
-# print('maximum levels allowed in decomposition is {}'.format(n_wavedec_levels))
-
 # function to compute inverse transform of single level
 def flux_waverec(flux, wavelet_wavedec, levels):
+	"""
+	compute reconstructed spectrum from coefficients output 
+	from the spectrum's wavelet decomposition. 
+
+	Args:
+		flux (np.array): normalized flux for decomposition (must have even # of elements)
+		wavelet_wavedec (str): name of mother wavelet in decomposition/reconstruction 
+								('sym2', 'haar', etc.)
+		levels (list): list of wavelet decomposition levels to return (e.g., [1,2,3])
+
+	Returns:
+		flux_waverec (np.array): normalized reconstructed flux, including only decomposition
+								levels specified by 'levels'
+	"""
+	# wavelet decomposition
 	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
 	coeffs = pywt.wavedec(flux, wavelet_wavedec, level = max_level, **wt_kwargs)
 	# set coefficients to zero for all other levels
@@ -38,7 +45,7 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 	for level in all_levels:
 		if level not in levels:
 			coeffs[level] = np.zeros_like(coeffs[level])
-	# perform wavelet recomposition
+	# wavelet reconstruction
 	flux_waverec = pywt.waverec(coeffs, wavelet_wavedec, **wt_kwargs)
 	return flux_waverec
 
@@ -46,7 +53,10 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 # plot the difference between the original + inverse transform
 def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
 	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
-	all_level_flux_waverec = flux_waverec(flux, np.arange(0, max_level+1))
+	all_level_flux_waverec = flux_waverec(
+		flux, 
+		wavelet_wavedec, 
+		np.arange(0, max_level+1))
 	diff = flux - all_level_flux_waverec
 	print(np.mean(abs(diff)))
 	plt.figure(figsize=(15,5))
@@ -59,7 +69,7 @@ def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
 	plt.xlabel('wavelength (angstrom)')
 	plt.ylabel('residuals')
 	path = './figures/{}_waverec_residuals.png'.format(wavelet_wavedec)
-	plt.savefig(path, dpi=150)
+	#plt.savefig(path, dpi=150)
 
 # plot different orders
 def plot_flux_waverec_levels(flux, wavelet_wavedec, object_name):
@@ -72,39 +82,33 @@ def plot_flux_waverec_levels(flux, wavelet_wavedec, object_name):
 	axes[0].text(6760, 0.1, 'original signal')
 	axes[0].set_ylim(-0.6,0.4)
 	for level in range(0, n_levels):
-		level_flux_waverec = flux_waverec(flux, [level])
+		level_flux_waverec = flux_waverec(
+			flux, 
+			wavelet_wavedec,
+			[level])
 		axes[n_levels - level].plot(w, level_flux_waverec, 'k-', lw=0.5)
 		#axes[n_levels - level].set_title('level = {}'.format(level), fontsize=8)
 	fig.suptitle(object_name)
 	fig.supxlabel('wavelength (nm)')
 	fig.supylabel('flux')
 	plt.subplots_adjust(hspace=0.4)
-	plt.savefig('/Users/isabelangelo/Desktop/wavelet_levels_2019_bior22.png')
+	#plt.savefig('/Users/isabelangelo/Desktop/wavelet_levels_2019_bior22.png')
 	plt.show()
-
-
-flux_2019 = fits.open(
-    './data/kepler1656_spectra/CK00367_2019_ij351.570_adj_resampled.fits')[1].data['s']
-flux_2019 = flux_2019[idx][:-1] - 1
-
-flux_2022 = fits.open(
-    './data/kepler1656_spectra/CK00367_2022_ij487.76_adj_resampled.fits')[1].data['s']
-flux_2022 = flux_2022[idx][:-1] - 1
 
 # plot the difference between 2019 and 2022
 def plot_waverec_level_diff(wavelet_wavedec):
-	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
+	max_level = pywt.dwt_max_level(len(flux_2019), wavelet_wavedec)
 	fig, axes = plt.subplots(max_level+1, 2, sharex=True, sharey=False, 
-	                         figsize=(14,10), tight_layout=True)
+	                         figsize=(14,14), tight_layout=True)
 
 	for level in range(max_level+1):
-	    level_2019 = flux_waverec(flux_2019, [level])
-	    level_2022 = flux_waverec(flux_2022, [level])
+	    level_2019 = flux_waverec(flux_2019, wavelet_wavedec,[level])
+	    level_2022 = flux_waverec(flux_2022, wavelet_wavedec,[level])
 	    axis_n = max_level-level
 	    axes[axis_n, 0].plot(w, level_2019, color='orangered', alpha=0.7)
 	    axes[axis_n, 0].plot(w, level_2022, color='cornflowerblue', alpha=0.7)
 	    axes[axis_n, 0].set_ylim(-0.2,0.2)
-	    axes[axis_n, 0].text(6715, 0.22, 'level = {}'.format(level))
+	    axes[axis_n, 0].text(6715, 0.1, 'level = {}'.format(level))
 	    if level == max_level:
 	        axes[axis_n, 0].text(6670, 0.07, '2019', color='orangered')
 	        axes[axis_n, 0].text(6670, -0.15, '2022', color='cornflowerblue')
@@ -113,14 +117,14 @@ def plot_waverec_level_diff(wavelet_wavedec):
 
 
 	for level in range(max_level+1):
-	    level_2019 = flux_waverec(flux_2019, [level])
-	    level_2022 = flux_waverec(flux_2022, [level])
+	    level_2019 = flux_waverec(flux_2019, wavelet_wavedec, [level])
+	    level_2022 = flux_waverec(flux_2022, wavelet_wavedec, [level])
 	    level_diff = level_2019 - level_2022
 	    rms = "{:0.2e}".format(np.sqrt(np.sum(level_diff**2)/len(level_diff)))
 	    axis_n = max_level-level
 	    axes[axis_n, 1].plot(w, level_diff, 'k-', alpha=0.7)
 	    axes[axis_n, 1].set_ylim(-0.05,0.05)
-	    axes[axis_n, 1].text(6705, 0.06, 'level = {}, rms = {}'.format(level, rms), color='firebrick')
+	    axes[axis_n, 1].text(6705, 0.03, 'level = {}, rms = {}'.format(level, rms), color='firebrick')
 	fig.supxlabel('wavelength (nm)')
 	fig.supylabel('flux')
 
@@ -128,6 +132,6 @@ def plot_waverec_level_diff(wavelet_wavedec):
 	axes[0,1].set_title('IDWT difference (2019 - 2022)', pad=30)
 	fig.suptitle('wavelet = {}'.format(wavelet_wavedec))
 	path = './figures/{}_level_diff.png'.format(wavelet_wavedec)
-	plt.savefig(path, dpi=150)
+	#plt.savefig(path, dpi=150)
 
-plot_flux_waverec_residuals(flux_2019, wavelet_wavedec)
+
