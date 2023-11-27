@@ -1,3 +1,5 @@
+# TO DO : I need to replace the code that loads/stores training data with a function that depends on the order
+# and then run it for each order.
 from astropy.io import fits
 import spectrum_dwt
 import pandas as pd
@@ -44,6 +46,7 @@ for i in range(len(cks_stars)):
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with > 3 percent flux errors')
 
+
 # write training + test set labels to .csv files
 id_starname_list = []
 flux_list = []
@@ -67,13 +70,19 @@ for i in range(len(cks_stars)):
     # remove nans from flux, sigma
     # note: this needs to happen here so that the Cannon
     # always returns flux values for all wavelengths
-    flux = np.nan_to_num(flux, nan=1)
+    finite_idx = ~np.isnan(flux)
+    if np.sum(finite_idx) != len(flux):
+        flux = np.interp(sepctrum_dwt.w, sepctrum_dwt.w[finite_idx], flux[finite_idx])
     sigma = np.nan_to_num(sigma, nan=1)
 
-    # slice + normalize flux for wavelet decomposition
-    # (also require even number of elements)
-    flux_norm = flux[spectrum_dwt.wavedec_idx][:-1] - 1
-    sigma_norm = sigma[spectrum_dwt.wavedec_idx][:-1]
+    # extract single order for wavelet decomposition
+    flux_norm = flux[spectrum_dwt.wavedec_idx]
+    sigma_norm = sigma[spectrum_dwt.wavedec_idx]
+
+    # require even number of elements
+    if len(flux_norm) %2 != 0:
+        flux_norm = flux_norm[:-1]
+        sigma_norm = sigma_norm[:-1]
 
     level_min, level_max = 1,8
     waverec_levels = np.arange(level_min,level_max+1,1)

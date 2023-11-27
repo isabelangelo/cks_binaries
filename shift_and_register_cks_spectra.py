@@ -32,6 +32,30 @@ for filename in spectrum_filenames:
 	resampled_spec = extended_spec.rescale(lib.wav)
 
 	# save to file
-	resampled_filename = './data/cks-spectra_shifted_resampled_r/' + resampled_spec.name +'_resampled.fits'
+	resampled_filename = './data/cks-spectra_shifted_resampled_r/' + resampled_spec.name +'_adj_resampled.fits'
+	resampled_spec.to_fits(resampled_filename)
+	print('saved resampled spectrum saved to {}'.format(resampled_filename))
+
+
+# also shift ang register Kepler-1656 spectra for DWT diagnostics
+kepler1656_filenames = glob.glob('./data/kepler1656_spectra/*rj*.fits')
+for filename in kepler1656_filenames:
+	# load spectrum
+	hires_spectrum = spectrum.read_hires_fits(filename)
+
+	# create specmatch object + shift
+	sm_hires = SpecMatch(hires_spectrum, lib)
+	sm_hires.shift()
+	shifted_spec = sm_hires.target
+
+	# extend spectrum to correct size for rescaling
+	extended_w = np.linspace(shifted_spec.w[0], shifted_spec.w[-1], len(lib.wav))
+	extended_spec =  shifted_spec.extend(extended_w)
+
+	# resample spectrum onto library wavelength
+	resampled_spec = extended_spec.rescale(lib.wav)
+
+	# save to file
+	resampled_filename = './data/kepler1656_spectra/' + resampled_spec.name +'_adj_resampled.fits'
 	resampled_spec.to_fits(resampled_filename)
 	print('saved resampled spectrum saved to {}'.format(resampled_filename))
