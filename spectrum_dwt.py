@@ -8,6 +8,8 @@ import specmatchemp.library
 # load wavelength array
 lib = specmatchemp.library.read_hdf()
 w = lib.wav
+
+wavedec_idx = (w>5197) & (w<5288)
 flux_2019 = fits.open(
     './data/kepler1656_spectra/CK00367_2019_rj351.570_adj_resampled.fits')[1].data['s']
 flux_2022 = fits.open(

@@ -9,7 +9,7 @@ import cannon_model_diagnostics
 
 # path to save model files to, 
 # should be descriptive of current model to be trained
-model_fileroot = 'ichip_order2_wavedec_sym5_level1-8.model'
+model_fileroot = 'rchip_order4_wavedec_sym5_level1-8.model'
 
 # define training set labels
 training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']

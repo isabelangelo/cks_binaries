@@ -72,7 +72,7 @@ for i in range(len(cks_stars)):
     # always returns flux values for all wavelengths
     finite_idx = ~np.isnan(flux)
     if np.sum(finite_idx) != len(flux):
-        flux = np.interp(sepctrum_dwt.w, sepctrum_dwt.w[finite_idx], flux[finite_idx])
+        flux = np.interp(spectrum_dwt.w, spectrum_dwt.w[finite_idx], flux[finite_idx])
     sigma = np.nan_to_num(sigma, nan=1)
 
     # extract single order for wavelet decomposition
