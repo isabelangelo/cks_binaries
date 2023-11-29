@@ -20,7 +20,8 @@ ref_specs = [read_fits(os.path.join('/Users/isabelangelo/.specmatchemp/shifted_s
              r[0] + '_adj.fits')) for r in SHIFT_REFERENCES]
 
 # create directories for the different orders
-for order_n in range(1,17):
+for order_idx in range(16):
+	order_n = order_idx+1 # order numbers are not zero-indexed
     order_path = './data/cks-spectra_shifted_resampled_r/order{}'.format(order_n)
     print(order_path)
     if not os.path.exists(order_path):
@@ -46,12 +47,15 @@ for filename in spectrum_filenames:
     best_ref_spec = ref_specs[bootstrap_shift_data['shift_reference']]
 
     # shift + register all orders
-    for order_n in range(target.w.shape[0]):
-        order = Spectrum(target.w[order_n], target.s[order_n], target.serr[order_n], target.mask[order_n])
+    for order_idx in range(target.w.shape[0]):
+    	# order numbers are not zero-indexed
+    	order_n = order_idx+1 
+
+        order = Spectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
         shifted_order = shift(order, best_ref_spec)
         
         # extend spectrum to correct size for rescaling
-        w_to_resample_to = target.w[order_n][1:-1]
+        w_to_resample_to = target.w[order_idx][1:-1]
         extended_w = np.linspace(shifted_order.w[0], shifted_order.w[-1], len(w_to_resample_to))
         extended_order =  shifted_order.extend(extended_w)
 
@@ -62,7 +66,7 @@ for filename in spectrum_filenames:
         fileroot = filename.split('/')[-1].replace('.fits', '')
         shifted_resampled_filename = '{}/order{}/{}.fits'.format(
         	shifted_resampled_path,
-        	str(order_n+1),
+        	str(order_n),
         	fileroot)
         resampled_order.to_fits(shifted_resampled_filename)
     print('saved resampled spectrum saved to {}/'.format(shifted_resampled_path))
@@ -86,12 +90,15 @@ for filename in kepler1656_filenames:
     best_ref_spec = ref_specs[bootstrap_shift_data['shift_reference']]
 
     # shift + register all orders
-    for order_n in range(target.w.shape[0]):
-        order = Spectrum(target.w[order_n], target.s[order_n], target.serr[order_n], target.mask[order_n])
+    for order_idx in range(target.w.shape[0]):
+    	# order numbers are not zero-indexed
+    	order_n = order_idx+1 
+
+        order = Spectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
         shifted_order = shift(order, best_ref_spec)
         
         # extend spectrum to correct size for rescaling
-        w_to_resample_to = target.w[order_n][1:-1]
+        w_to_resample_to = target.w[order_idx][1:-1]
         extended_w = np.linspace(shifted_order.w[0], shifted_order.w[-1], len(w_to_resample_to))
         extended_order =  shifted_order.extend(extended_w)
 
@@ -103,6 +110,6 @@ for filename in kepler1656_filenames:
         shifted_resampled_filename = '{}/{}_order{}.fits'.format(
         	kepler1656_path,
         	fileroot,
-        	str(order_n+1))
+        	str(order_n))
         resampled_order.to_fits(shifted_resampled_filename)
     print('saved resampled spectrum saved to {}/'.format(shifted_resampled_path))

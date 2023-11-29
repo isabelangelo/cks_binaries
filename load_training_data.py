@@ -1,5 +1,6 @@
-# TO DO : I need to replace the code that loads/stores training data with a function that depends on the order
-# and then run it for each order.
+"""
+Loads labels + HIRES spectra for the Cannon training and test sets.
+"""
 from astropy.io import fits
 import spectrum_dwt
 import pandas as pd
@@ -45,75 +46,91 @@ for i in range(len(cks_stars)):
         low_sigma_idx_to_remove.append(i)
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with > 3 percent flux errors')
-
-
-# write training + test set labels to .csv files
-id_starname_list = []
-flux_list = []
-sigma_list = []
-
-for i in range(len(cks_stars)):
-
-	# load file data
-    row = cks_stars.iloc[i]
-    row_id_starname = row.id_starname.replace('K','k')
-    row_spectrum_fileroot = str(row.spectrum_fileroot)
-
-    filename = path + 'cks-{}_rj{}_adj_resampled.fits'.format(
-        row_id_starname, row_spectrum_fileroot)
-    file = fits.open(filename)[1].data
-    
-    # store flux, sigma
-    flux = file['s']
-    sigma = file['serr']
-
-    # remove nans from flux, sigma
-    # note: this needs to happen here so that the Cannon
-    # always returns flux values for all wavelengths
-    finite_idx = ~np.isnan(flux)
-    if np.sum(finite_idx) != len(flux):
-        flux = np.interp(spectrum_dwt.w, spectrum_dwt.w[finite_idx], flux[finite_idx])
-    sigma = np.nan_to_num(sigma, nan=1)
-
-    # extract single order for wavelet decomposition
-    flux_norm = flux[spectrum_dwt.wavedec_idx]
-    sigma_norm = sigma[spectrum_dwt.wavedec_idx]
-
-    # require even number of elements
-    if len(flux_norm) %2 != 0:
-        flux_norm = flux_norm[:-1]
-        sigma_norm = sigma_norm[:-1]
-
-    level_min, level_max = 1,8
-    waverec_levels = np.arange(level_min,level_max+1,1)
-    flux_waverec = spectrum_dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
-    flux_waverec += 1 # normalize to 1 for training
-    
-    # save to lists
-    flux_list.append(flux_waverec) 
-    sigma_list.append(sigma_norm)
-    id_starname_list.append(row.id_starname)
-    
-flux_df = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
-sigma_df = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
-
-flux_df.to_csv('./data/hires_spectra_dataframes/training_flux.csv')
-sigma_df.to_csv('./data/hires_spectra_dataframes/training_sigma.csv')
 cks_stars.to_csv('./data/label_dataframes/training_labels.csv')
-print('training flux and sigma saved to .csv files')
 print('training labels saved to .csv file')
 
-# write training + test data to fits files
-flux_filename = './data/cannon_training_data/training_flux.fits'
-sigma_filename = './data/cannon_training_data/training_sigma.fits' 
-flux_arr = flux_df.to_numpy().T
-sigma_arr = sigma_df.to_numpy().T
+# re-write code below to save data for particular order
+def write_training_set_to_file(order_idx):
 
-fits.HDUList([fits.PrimaryHDU(flux_arr)]).writeto(flux_filename, overwrite=True)
-print('training flux array saved to {}'.format(flux_filename))
+    # order numbers are not zero-indexed
+    order_n = order_idx + 1
 
-fits.HDUList([fits.PrimaryHDU(sigma_arr)]).writeto(sigma_filename, overwrite=True)
-print('training sigma array saved to {}'.format(sigma_filename))
+    # lists to store data
+    id_starname_list = []
+    flux_list = []
+    sigma_list = []
+
+    # get order data for all stars in training set
+    for i in range(len(cks_stars)):
+
+        # load file data
+        row = cks_stars.iloc[i]
+        row_id_starname = row.id_starname.replace('K','k')
+        row_spectrum_fileroot = str(row.spectrum_fileroot)
+
+        filename = path + 'order{}/cks-{}_rj{}_adj_resampled.fits'.format(
+            order_n,row_id_starname, row_spectrum_fileroot)
+        file = fits.open(filename)[1].data
+        
+        # store flux, sigma
+        flux_norm = file['s']
+        sigma_norm = file['serr']
+
+        # remove nans from flux, sigma
+        # note: this needs to happen here so that the Cannon
+        # always returns flux values for all wavelengths
+        finite_idx = ~np.isnan(flux)
+        if np.sum(finite_idx) != len(flux):
+            flux_norm = np.interp(spectrum_dwt.w, spectrum_dwt.w[finite_idx], flux[finite_idx])
+        sigma_norm = np.nan_to_num(sigma, nan=1)
+
+        # require even number of elements
+        if len(flux_norm) %2 != 0:
+            flux_norm = flux_norm[:-1]
+            sigma_norm = sigma_norm[:-1]
+
+        # require even number of elements
+        if len(flux_norm) %2 != 0:
+            flux_norm = flux_norm[:-1]
+            sigma_norm = sigma_norm[:-1]
+
+        # compute wavelet transform of flux
+        level_min, level_max = 1,8
+        waverec_levels = np.arange(level_min,level_max+1,1)
+        flux_waverec = spectrum_dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
+        flux_waverec += 1 # normalize to 1 for training
+
+        # save to lists
+        flux_list.append(flux_waverec) 
+        sigma_list.append(sigma_norm)
+        id_starname_list.append(row.id_starname)
+
+    flux_df = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
+    sigma_df = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
+
+    # I really just need to re-write all of these to be order specific.
+    df_path = './data/cks-spectra_dataframes/'
+    flux_df.to_csv('{}/training_flux_order{}.csv'.format(df_path, order_n))
+    sigma_df.to_csv('{}/training_sigma_order{}.csv'.format(df_path, order_n))
+    print('training flux and sigma saved to .csv files')
+
+    # write training + test data to fits files
+    fits_path = './data/cannon_training_data/'
+    flux_filename = '{}/training_flux_order{}.fits'.format(fits_path, order_n)
+    sigma_filename = '{}/training_sigma_order{}.fits'.format(fits_path, order_n)
+
+    flux_arr = flux_df.to_numpy().T
+    sigma_arr = sigma_df.to_numpy().T
+
+    fits.HDUList([fits.PrimaryHDU(flux_arr)]).writeto(flux_filename, overwrite=True)
+    print('training flux array saved to {}'.format(flux_filename))
+
+    fits.HDUList([fits.PrimaryHDU(sigma_arr)]).writeto(sigma_filename, overwrite=True)
+    print('training sigma array saved to {}'.format(sigma_filename))
+
+    # TO DO :
+    # this code saves training data to training_flux_orderX.fits
+    # should it save to order1/training_flux.csv? maybe not necessary...
 
 
 
