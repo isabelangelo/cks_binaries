@@ -36,7 +36,7 @@ for i in range(len(cks_stars)):
     row_id_starname = row.id_starname.replace('K','k')
     row_spectrum_fileroot = str(row.spectrum_fileroot)
 
-    filename = path + 'cks-{}_rj{}_adj_resampled.fits'.format(
+    filename = path + '/all_orders/cks-{}_rj{}.fits'.format(
         row_id_starname, row_spectrum_fileroot)
     file = fits.open(filename)[1].data
 
@@ -68,21 +68,22 @@ def write_training_set_to_file(order_idx):
         row_id_starname = row.id_starname.replace('K','k')
         row_spectrum_fileroot = str(row.spectrum_fileroot)
 
-        filename = path + 'order{}/cks-{}_rj{}_adj_resampled.fits'.format(
+        filename = path + 'order{}/cks-{}_rj{}.fits'.format(
             order_n,row_id_starname, row_spectrum_fileroot)
         file = fits.open(filename)[1].data
         
         # store flux, sigma
         flux_norm = file['s']
         sigma_norm = file['serr']
+        w_order = file['w']
 
         # remove nans from flux, sigma
         # note: this needs to happen here so that the Cannon
         # always returns flux values for all wavelengths
-        finite_idx = ~np.isnan(flux)
-        if np.sum(finite_idx) != len(flux):
-            flux_norm = np.interp(spectrum_dwt.w, spectrum_dwt.w[finite_idx], flux[finite_idx])
-        sigma_norm = np.nan_to_num(sigma, nan=1)
+        finite_idx = ~np.isnan(flux_norm)
+        if np.sum(finite_idx) != len(flux_norm):
+            flux_norm = np.interp(w_order, w_order[finite_idx], flux_norm[finite_idx])
+        sigma_norm = np.nan_to_num(sigma_norm, nan=1)
 
         # require even number of elements
         if len(flux_norm) %2 != 0:
@@ -109,13 +110,13 @@ def write_training_set_to_file(order_idx):
     sigma_df = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
 
     # I really just need to re-write all of these to be order specific.
-    df_path = './data/cks-spectra_dataframes/'
+    df_path = './data/cks-spectra_dataframes'
     flux_df.to_csv('{}/training_flux_order{}.csv'.format(df_path, order_n))
     sigma_df.to_csv('{}/training_sigma_order{}.csv'.format(df_path, order_n))
     print('training flux and sigma saved to .csv files')
 
     # write training + test data to fits files
-    fits_path = './data/cannon_training_data/'
+    fits_path = './data/cannon_training_data'
     flux_filename = '{}/training_flux_order{}.fits'.format(fits_path, order_n)
     sigma_filename = '{}/training_sigma_order{}.fits'.format(fits_path, order_n)
 
@@ -128,11 +129,10 @@ def write_training_set_to_file(order_idx):
     fits.HDUList([fits.PrimaryHDU(sigma_arr)]).writeto(sigma_filename, overwrite=True)
     print('training sigma array saved to {}'.format(sigma_filename))
 
-    # TO DO :
-    # this code saves training data to training_flux_orderX.fits
-    # should it save to order1/training_flux.csv? maybe not necessary...
 
-
+# write training set data to files for all 16 orders
+for order_idx in range(0, 16):
+    write_training_set_to_file(order_idx)
 
 
 

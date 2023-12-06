@@ -6,7 +6,8 @@ import thecannon as tc
 import numpy as np
 import pandas as pd
 
-def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, figure_path):
+def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, figure_path, \
+	save_order_to=None, order_number=None):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
     labels inferred from the training set spectra.
@@ -72,6 +73,13 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 		plt.xlabel('CKS {}'.format(label));plt.ylabel('Cannon {}'.format(label))
 		plt.plot([x.min(), x.max()], [x.min(), x.max()], lw=0.7, color='#AA8ED9')
 		plt.legend(loc='upper left', frameon=False, labelcolor='firebrick')
+		# save order stats to file
+		if save_order_to is not None:
+			stats_dict = {'order': order_number, 'label':label, 'bias':bias, 'rms': rms}
+			existing_order_data = pd.read_csv(save_order_to)
+			updated_order_data  = pd.concat(
+				[existing_order_data, pd.DataFrame([stats_dict])])
+			updated_order_data.to_csv(save_order_to, index=False)
 
 	def plot_label_difference(label_df, label):
 	    x = label_df['cks_{}'.format(label)]

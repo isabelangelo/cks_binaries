@@ -9,12 +9,6 @@ import specmatchemp.library
 lib = specmatchemp.library.read_hdf()
 w = lib.wav
 
-wavedec_idx = (w>5197) & (w<5288)
-flux_2019 = fits.open(
-    './data/kepler1656_spectra/CK00367_2019_rj351.570_adj_resampled.fits')[1].data['s']
-flux_2022 = fits.open(
-    './data/kepler1656_spectra/CK00367_2022_rj487.76_adj_resampled.fits')[1].data['s']
-
 # define tranform function inputs
 wt_kwargs = {
 'mode':'constant', # extends signal based on edge values
@@ -121,6 +115,12 @@ def plot_flux_waverec_levels(w, flux, wavelet_wavedec, object_name):
 
 # plot the difference between 2019 and 2022
 def plot_waverec_level_diff(w, wavelet_wavedec):
+	# wavedec_idx = (w>5197) & (w<5288)
+	flux_2019 = fits.open(
+	    './data/kepler1656_spectra/all_orders/CK00367_2019_rj351.570_adj_resampled.fits')[1].data['s']
+	flux_2022 = fits.open(
+	    './data/kepler1656_spectra/all_orders/CK00367_2022_rj487.76_adj_resampled.fits')[1].data['s']
+
 	max_level = pywt.dwt_max_level(len(flux_2019), wavelet_wavedec)
 	fig, axes = plt.subplots(max_level+1, 2, sharex=True, sharey=False, 
 	                         figsize=(14,14), tight_layout=True)
