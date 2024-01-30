@@ -15,15 +15,17 @@ empty_order_df = pd.DataFrame({'order': [],'label':[],'bias': [],'rms': []})
 empty_order_df.to_csv(order_data_path, index=False)
 
 
-def train_single_order_cannon_model(order_idx):
-
-	# order numbers are not zero-indexed
-	order_n = order_idx + 1
+def train_single_order_cannon_model(order_n):
+	"""
+	Trains a Cannon model of a specific order
+	order_n (int): order number to train on, 1-16 for HIRES r chip
+	"""
 
 	# path to save model files to, 
 	# should be descriptive of current model to be trained
 	model_fileroot = 'rchip_order{}.model'.format(order_n)
 
+	# move L27-33 to outside this function
 	# define training set labels
 	training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
 
@@ -50,7 +52,7 @@ def train_single_order_cannon_model(order_idx):
 	                       vectorizer=vectorizer)
 	# train model
 	model_path = './data/cannon_models/'
-	model_filename = model_path + model_fileroot + '.model'
+	model_filename = model_path + model_fileroot# + '.model'
 	model.train()
 	print('finished training cannon model')
 	model.write(model_filename, include_training_set_spectra=True)
@@ -74,9 +76,11 @@ def train_single_order_cannon_model(order_idx):
 		order_number = order_n)
 
 
+train_single_order_cannon_model(0)
+
+
 # train cannon models + save stats for all 16 orders
-for order_idx in range(0, 16):
-    train_single_order_cannon_model(order_idx)
+# for order_n in range(1, 17):
+#     train_single_order_cannon_model(order_idx)
 
-
-
+# insertt code to train on all orders
