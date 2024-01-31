@@ -1,11 +1,18 @@
 """
 Loads labels + HIRES spectra for the Cannon training and test sets.
 """
+from specmatchemp.spectrum import read_hires_fits
 from astropy.io import fits
 import spectrum_dwt
 import pandas as pd
 import numpy as np
 import glob
+
+# define paths to load and store spectrum files
+original_path = './data/cks-spectra/'
+shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
+df_path = './data/cks-spectra_dataframes'
+fits_path = './data/cannon_training_data'
 
 # load table with CKS properties from CKS website
 cks_stars = pd.read_csv(
@@ -28,7 +35,6 @@ print(len(cks_stars), 'remaining after requiring logg>4')
 
 # remove stars with low SNR
 low_sigma_idx_to_remove = []
-path = './data/cks-spectra_shifted_resampled_r/'
 for i in range(len(cks_stars)):
 
     # load file data
@@ -36,16 +42,16 @@ for i in range(len(cks_stars)):
     row_id_starname = row.id_starname.replace('K','k')
     row_spectrum_fileroot = str(row.spectrum_fileroot)
 
-    filename = path + '/all_orders/cks-{}_rj{}.fits'.format(
+    filename = original_path + 'cks-{}_rj{}.fits'.format(
         row_id_starname, row_spectrum_fileroot)
-    file = fits.open(filename)[1].data
+    target = read_hires_fits(filename)
 
     # compute average pixel error, remove if >3%
-    sigma_avg = np.mean(file['serr'])
-    if sigma_avg >= 0.03:
+    snr = np.nanmean(target.s)/np.nanmean(target.serr)
+    if snr < 20:
         low_sigma_idx_to_remove.append(i)
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
-print(len(cks_stars), ' after removing spectra with > 3 percent flux errors')
+print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 cks_stars.to_csv('./data/label_dataframes/training_labels.csv')
 print('training labels saved to .csv file')
 
@@ -68,7 +74,7 @@ def write_training_set_to_file(order_idx):
         row_id_starname = row.id_starname.replace('K','k')
         row_spectrum_fileroot = str(row.spectrum_fileroot)
 
-        filename = path + 'order{}/cks-{}_rj{}.fits'.format(
+        filename = shifted_resampled_path + 'order{}/cks-{}_rj{}.fits'.format(
             order_n,row_id_starname, row_spectrum_fileroot)
         file = fits.open(filename)[1].data
         
@@ -109,14 +115,12 @@ def write_training_set_to_file(order_idx):
     flux_df = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
     sigma_df = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
 
-    # I really just need to re-write all of these to be order specific.
-    df_path = './data/cks-spectra_dataframes'
+    # write training data to .csv files
     flux_df.to_csv('{}/training_flux_order{}.csv'.format(df_path, order_n))
     sigma_df.to_csv('{}/training_sigma_order{}.csv'.format(df_path, order_n))
     print('training flux and sigma saved to .csv files')
 
-    # write training + test data to fits files
-    fits_path = './data/cannon_training_data'
+    # write training data to fits files
     flux_filename = '{}/training_flux_order{}.fits'.format(fits_path, order_n)
     sigma_filename = '{}/training_sigma_order{}.fits'.format(fits_path, order_n)
 

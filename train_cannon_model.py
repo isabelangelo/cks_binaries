@@ -58,6 +58,8 @@ def train_single_order_cannon_model(order_n):
 	model.write(model_filename, include_training_set_spectra=True)
 	print('model written to {}'.format(model_filename))
 
+	import pdb;pdb.set_trace()
+
 	# next I want to write some code to generate one-to-one plots
 	# similar to the ones I made for the Cannon
 	print('generating one-to-one diagnostic plot using leave-one-out cross-validation...')
