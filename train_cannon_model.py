@@ -25,7 +25,6 @@ def train_single_order_cannon_model(order_n):
 	# should be descriptive of current model to be trained
 	model_fileroot = 'rchip_order{}.model'.format(order_n)
 
-	# move L27-33 to outside this function
 	# define training set labels
 	training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
 
@@ -40,7 +39,7 @@ def train_single_order_cannon_model(order_n):
 	normalized_sigma = fits.open(normalized_sigma_filename)[0].data
 	normalized_ivar = 1/normalized_sigma**2
 
-	# clip end of each order by 200 pixels (total of 10% clipped)
+	# clip end of each order by 200 pixels (5% on each side, 10% total)
 	normalized_flux = normalized_flux[:,200:-200]
 	normalized_ivar = normalized_ivar[:,200:-200]
 
@@ -78,7 +77,8 @@ def train_single_order_cannon_model(order_n):
 		order_number = order_n)
 
 
-train_single_order_cannon_model(0)
+train_single_order_cannon_model(1)
+
 
 
 # train cannon models + save stats for all 16 orders

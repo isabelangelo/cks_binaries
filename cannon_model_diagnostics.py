@@ -10,7 +10,9 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	save_order_to=None, order_number=None):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
-    labels inferred from the training set spectra.
+    labels inferred from the training set spectra. 
+    note: For cross-validation, I train 5 models with 20% of the training set held out,
+	and then use that model to compute the labels for the held out 20%.
 
     Args:
     	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
@@ -24,40 +26,56 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
 
 	def compute_cannon_labels(label_df, flux_df, sigma_df):
+		# define training set labels
 		cks_keys = labels_to_plot
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
 		vectorizer = tc.vectorizer.PolynomialVectorizer(cks_keys, 2)
 
+		# bin training data into 5 test sets
+		n_training = len(model_to_validate.training_set_labels)
+		test_size = n_training // 5
+		test_bins = np.arange(0,n_training,test_size)
+		test_bins[-1]= n_training - 1 # include remainder in last chunk
+
+		# perform leave-20%-out cross validation for each bin
 		cannon_label_data = []
-		for i in range(len(model_to_validate.training_set_labels)):
-			# store labels, flux + sigma for left out target
-			cks_labels = model_to_validate.training_set_labels[i]
-			flux = model_to_validate.training_set_flux[i]
-			ivar = model_to_validate.training_set_ivar[i]
+		for i in range(len(test_bins)-1):
+		    
+		    # define index bounds of left out sample
+		    start_idx, stop_idx = test_bins[i], test_bins[i+1]
+		    s = slice(start_idx, stop_idx)
+		    print(start_idx, '-', stop_idx)
+		    
+		    # remove left out targets from original training data
+		    training_set_labels_leave1out = np.delete(model_to_validate.training_set_labels, s, 0)
+		    training_set_leave1out = Table(training_set_labels_leave1out, names=cks_keys)
+		    normalized_flux_leave1out = np.delete(model_to_validate.training_set_flux, s, 0)
+		    normalized_ivar_leave1out = np.delete(model_to_validate.training_set_ivar, s, 0)
 
-			# remove left out target from training data
-			training_set_labels_leave1out = np.delete(model_to_validate.training_set_labels, i, 0)
-			training_set_leave1out = Table(training_set_labels_leave1out, names=cks_keys)
-			normalized_flux_leave1out = np.delete(model_to_validate.training_set_flux, i, 0)
-			normalized_ivar_leave1out = np.delete(model_to_validate.training_set_ivar, i, 0)
+		    # train model for cross validation
+		    model_leave1out = tc.CannonModel(
+		        training_set_leave1out, 
+		        normalized_flux_leave1out, 
+		        normalized_ivar_leave1out,
+		        vectorizer=vectorizer, 
+		        regularization=None)
+		    model_leave1out.train()
+		    
+		    # store labels, flux + sigma for left out targets
+		    for spectrum_idx in range(start_idx, stop_idx):
+		        cks_labels = model_to_validate.training_set_labels[spectrum_idx]
+		        flux = model_to_validate.training_set_flux[spectrum_idx]
+		        ivar = model_to_validate.training_set_ivar[spectrum_idx]
+		        
+		        # fit cross validation model to data
+		        cannon_labels = model_leave1out.test(flux, ivar)[0][0]
 
-			# train model for cross validation
-			model_leave1out = tc.CannonModel(
-			    training_set_leave1out, 
-			    normalized_flux_leave1out, 
-			    normalized_ivar_leave1out,
-			    vectorizer=vectorizer, 
-			    regularization=None)
-			model_leave1out.train()
+		        # store data for plot
+		        keys = cks_keys + cannon_keys + ['test_number']
+		        values = cks_labels.tolist() + cannon_labels.tolist() + [i]
+		        cannon_label_data.append(dict(zip(keys, values)))
 
-			# fit cross validation model to data
-			cannon_labels = model_to_validate.test(flux, ivar)[0][0]
-
-			# all these data to plot.
-			keys = cks_keys + cannon_keys
-			values = cks_labels.tolist() + cannon_labels.tolist()
-			cannon_label_data.append(dict(zip(keys, values)))
-
+		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
 		return cannon_label_df
 
