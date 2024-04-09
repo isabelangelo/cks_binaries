@@ -96,11 +96,6 @@ def write_training_set_to_file(order_idx):
             flux_norm = flux_norm[:-1]
             sigma_norm = sigma_norm[:-1]
 
-        # require even number of elements
-        if len(flux_norm) %2 != 0:
-            flux_norm = flux_norm[:-1]
-            sigma_norm = sigma_norm[:-1]
-
         # compute wavelet transform of flux
         level_min, level_max = 1,8
         waverec_levels = np.arange(level_min,level_max+1,1)

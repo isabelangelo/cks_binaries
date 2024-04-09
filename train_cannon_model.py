@@ -5,7 +5,7 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import pandas as pd
 import thecannon as tc
-import cannon_model_diagnostics
+from cannon_model_diagnostics import *
 
 # initialize file with order stats
 order_data_path = './data/cannon_models/cannon_order_model_stats.csv'
@@ -39,9 +39,9 @@ def train_single_order_cannon_model(order_n):
 	normalized_sigma = fits.open(normalized_sigma_filename)[0].data
 	normalized_ivar = 1/normalized_sigma**2
 
-	# clip end of each order by 200 pixels (5% on each side, 10% total)
-	normalized_flux = normalized_flux[:,200:-200]
-	normalized_ivar = normalized_ivar[:,200:-200]
+	# clip end of each order by 5% on each side (10% total)
+	normalized_flux = normalized_flux[:,order_clip:-1*order_clip]
+	normalized_ivar = normalized_ivar[:,order_clip:-1*order_clip]
 
 	# Create a vectorizer that defines our model form.
 	vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
@@ -57,17 +57,14 @@ def train_single_order_cannon_model(order_n):
 	model.write(model_filename, include_training_set_spectra=True)
 	print('model written to {}'.format(model_filename))
 
-	import pdb;pdb.set_trace()
-
-	# next I want to write some code to generate one-to-one plots
-	# similar to the ones I made for the Cannon
+	# generate one-to-one plots
 	print('generating one-to-one diagnostic plot using leave-one-out cross-validation...')
 	training_df_path = './data/cks-spectra_dataframes/'
 	flux_df_filename = training_df_path + 'training_flux_order{}.csv'.format(order_n)
 	sigma_df_filename = training_df_path + 'training_sigma_order{}.csv'.format(order_n)
 	flux_df = pd.read_csv(flux_df_filename)
 	sigma_df = pd.read_csv(sigma_df_filename)
-	cannon_model_diagnostics.plot_one_to_one_leave1out(
+	plot_one_to_one_leave1out(
 		model, 
 		training_set.to_pandas(), 
 		flux_df, 
@@ -76,13 +73,8 @@ def train_single_order_cannon_model(order_n):
 		save_order_to = order_data_path,
 		order_number = order_n)
 
-
-train_single_order_cannon_model(1)
-
-
-
 # train cannon models + save stats for all 16 orders
-# for order_n in range(1, 17):
-#     train_single_order_cannon_model(order_idx)
+for order_n in range(1, 17):
+    train_single_order_cannon_model(order_n)
 
-# insertt code to train on all orders
+# insert code to train on all orders
