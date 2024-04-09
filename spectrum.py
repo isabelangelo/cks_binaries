@@ -1,7 +1,3 @@
-# once this is done, I'll update cannon_model_diagnostics
-# (1) replace model test step code
-# (2) remove redundant import statements
-
 import thecannon as tc
 import astropy.units as u
 import astropy.constants as c

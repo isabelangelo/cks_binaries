@@ -1,8 +1,9 @@
+
 from astropy.io import fits
 from astropy.table import Table
+from spectrum import SingleOrderSpectrum
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import thecannon as tc
 import numpy as np
 import pandas as pd
 
@@ -15,10 +16,10 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	and then use that model to compute the labels for the held out 20%.
 
     Args:
+    	model_to_validate (tc.CannonModel) : cannon model object to test
     	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
     	flux_df (pd.Dataframe) : flux of sample to plot (n_pixels x n_objects)
     	sigma_df (pd.Dataframe) : sigma of sample to plot (n_pixels x n_objects)
-    	model (tc.CannonModel) : cannon model object to test
     	figure_path (str) : full path to save plot to 
     	path_to_save_labels (str) : full path to save injected + recovered labels, if given
 	"""
@@ -207,3 +208,18 @@ def plot_one_to_one(label_df, flux_df, sigma_df, model,
 		plt.subplot(gs[2*i+1])
 		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
+
+
+# steps to fix:
+# change plot_one_to_one_leave1out to read in the order_number with no default
+# then have it compute the model_to_validate in the top of the function.
+# then change the SingleOrderSpectrum object to have a model=None input
+# if None, compute the model 
+# then it can read in a different model as the input.
+# then I can change plot_ont_to_one to read in the order_number
+# and replace the test step.
+
+
+
+
+
