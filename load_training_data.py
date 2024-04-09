@@ -14,6 +14,10 @@ shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 df_path = './data/cks-spectra_dataframes'
 fits_path = './data/cannon_training_data'
 
+# clip size to clip 5% each end of order (in pixels)
+# used to generate training set
+order_clip = 200
+
 # load table with CKS properties from CKS website
 cks_stars = pd.read_csv(
     './data/literature_data/cks_physical_merged_with_fileroots.csv',
@@ -102,6 +106,10 @@ def write_training_set_to_file(order_idx):
         flux_waverec = spectrum_dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
         flux_waverec += 1 # normalize to 1 for training
 
+        # clip order on each end
+        flux_waverec = flux_waverec[order_clip:-1*order_clip]
+        sigma_norm = sigma_norm[order_clip:-1*order_clip]
+
         # save to lists
         flux_list.append(flux_waverec) 
         sigma_list.append(sigma_norm)
@@ -133,8 +141,7 @@ def write_training_set_to_file(order_idx):
 for order_idx in range(0, 16):
     write_training_set_to_file(order_idx)
 
-
-
+# write clipped wavelength data to reference file
 
 
 

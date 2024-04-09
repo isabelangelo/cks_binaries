@@ -1,14 +1,14 @@
-
 from astropy.io import fits
 from astropy.table import Table
 from spectrum import SingleOrderSpectrum
+from spectrum import tc 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import pandas as pd
 
-def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, figure_path, \
-	save_order_to=None, order_number=None):
+def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_path, \
+	save_order_to=None):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
     labels inferred from the training set spectra. 
@@ -16,7 +16,7 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	and then use that model to compute the labels for the held out 20%.
 
     Args:
-    	model_to_validate (tc.CannonModel) : cannon model object to test
+    	order number (int) : number of HIRES r chip spectrum order (1-17)
     	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
     	flux_df (pd.Dataframe) : flux of sample to plot (n_pixels x n_objects)
     	sigma_df (pd.Dataframe) : sigma of sample to plot (n_pixels x n_objects)
@@ -25,6 +25,10 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	"""
 	pc = 'k';markersize=1;alpha_value=0.5
 	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
+
+	# compute model to validate based on order number
+	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
+	model_to_validate = tc.CannonModel.read(model_path)
 
 	def compute_cannon_labels(label_df, flux_df, sigma_df):
 		# define training set labels
@@ -45,7 +49,8 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 		    # define index bounds of left out sample
 		    start_idx, stop_idx = test_bins[i], test_bins[i+1]
 		    s = slice(start_idx, stop_idx)
-		    print(start_idx, '-', stop_idx)
+		    print('training model with objects {}-{} held out'.format(
+		    	start_idx, stop_idx))
 		    
 		    # remove left out targets from original training data
 		    training_set_labels_leave1out = np.delete(model_to_validate.training_set_labels, s, 0)
@@ -67,9 +72,20 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 		        cks_labels = model_to_validate.training_set_labels[spectrum_idx]
 		        flux = model_to_validate.training_set_flux[spectrum_idx]
 		        ivar = model_to_validate.training_set_ivar[spectrum_idx]
+		        sigma = 1/np.sqrt(ivar)
 		        
-		        # fit cross validation model to data
-		        cannon_labels = model_leave1out.test(flux, ivar)[0][0]
+		        # fit cross validation model to data (replaced by code below)
+		        # cannon_labels = model_leave1out.test(flux, ivar)[0][0]
+
+		        # fit cross validation mdoel to data
+		        import pdb;pdb.set_trace()
+		        spec = SingleOrderSpectrum(
+		        	flux, 
+		        	sigma, 
+		        	order_number, 
+		        	cannon_model=model_leave1out)
+		        spec.fit_single_star()
+		        cannon_labels = spec.cannon_labels
 
 		        # store data for plot
 		        keys = cks_keys + cannon_keys + ['test_number']
@@ -127,7 +143,7 @@ def plot_one_to_one_leave1out(model_to_validate, label_df, flux_df, sigma_df, fi
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
 
 
-def plot_one_to_one(label_df, flux_df, sigma_df, model, 
+def plot_one_to_one(order_number, label_df, flux_df, sigma_df, 
 	figure_path, path_to_save_labels=None):
 	"""
 	Plot a one-to-one comparison of the training set labels from GALAH and the Cannon
@@ -136,7 +152,11 @@ def plot_one_to_one(label_df, flux_df, sigma_df, model,
 	pc = 'k';markersize=1;alpha_value=0.5
 	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
 
-	def compute_cannon_labels(label_df, flux_df, sigma_df, model):
+	# compute model to validate based on order number
+	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
+	model = tc.CannonModel.read(model_path)
+
+	def compute_cannon_labels(label_df, flux_df, sigma_df):
 		cks_keys = labels_to_plot
 		cannon_keys = [key.replace('cks','cannon') for key in labels_to_plot]
 
@@ -149,15 +169,26 @@ def plot_one_to_one(label_df, flux_df, sigma_df, model,
 			# fit cannon model
 			flux = flux_df[id_starname]
 			sigma = sigma_df[id_starname]
-			ivar = 1/sigma**2
-			result = model.test(flux, ivar)
-			teff_fit, logg_fit, met_fit, vsini_fit = result[0][0]
+
+			# replaced by code beloow
+			# ivar = 1/sigma**2
+			# result = model.test(flux, ivar)
+			# teff_fit, logg_fit, met_fit, vsini_fit = result[0][0]
+
+			spec = SingleOrderSpectrum(
+				flux,
+				sigma,
+				order_number)
+			spec.fit_single_star()
+			teff_fit, logg_fit, met_fit, vsini_fit = spec.cannon_labels
+
 			# store cannon labels
 			cannon_labels = [teff_fit, logg_fit, met_fit, vsini_fit]
 			# convert to dictionary
 			keys = ['id_starname'] + cks_keys + cannon_keys
 			values = [id_starname] + cks_labels + cannon_labels
 			cannon_label_data.append(dict(zip(keys, values)))
+
 		cannon_label_df = pd.DataFrame(cannon_label_data)
 		return cannon_label_df
 
@@ -192,8 +223,7 @@ def plot_one_to_one(label_df, flux_df, sigma_df, model,
 	cannon_label_df = compute_cannon_labels(
 		label_df, 
 		flux_df, 
-		sigma_df, 
-		model)
+		sigma_df)
 
 	if path_to_save_labels is not None:
 		cannon_label_filename = './'+path_to_save_labels+'.csv'
@@ -210,15 +240,13 @@ def plot_one_to_one(label_df, flux_df, sigma_df, model,
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
 
 
-# steps to fix:
-# change plot_one_to_one_leave1out to read in the order_number with no default
-# then have it compute the model_to_validate in the top of the function.
-# then change the SingleOrderSpectrum object to have a model=None input
-# if None, compute the model 
-# then it can read in a different model as the input.
-# then I can change plot_ont_to_one to read in the order_number
-# and replace the test step.
-
+# okay, I think this code is done.
+# I just need to run a couple tests before running the rest of the code.
+# I think I need to think about how to run this.
+# I would want to just run train_cannon_model again.
+# since it runs the diagnostics.
+# but to test it, can I just load those data frames in a jupyter notebook?
+# it's the plot_one_to_one_leave1out function.
 
 
 

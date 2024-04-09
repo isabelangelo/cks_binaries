@@ -39,9 +39,9 @@ def train_single_order_cannon_model(order_n):
 	normalized_sigma = fits.open(normalized_sigma_filename)[0].data
 	normalized_ivar = 1/normalized_sigma**2
 
-	# clip end of each order by 5% on each side (10% total)
-	normalized_flux = normalized_flux[:,order_clip:-1*order_clip]
-	normalized_ivar = normalized_ivar[:,order_clip:-1*order_clip]
+	# # clip end of each order by 5% on each side (10% total)
+	# normalized_flux = normalized_flux[:,order_clip:-1*order_clip]
+	# normalized_ivar = normalized_ivar[:,order_clip:-1*order_clip]
 
 	# Create a vectorizer that defines our model form.
 	vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
@@ -65,13 +65,12 @@ def train_single_order_cannon_model(order_n):
 	flux_df = pd.read_csv(flux_df_filename)
 	sigma_df = pd.read_csv(sigma_df_filename)
 	plot_one_to_one_leave1out(
-		model, 
+		order_n, 
 		training_set.to_pandas(), 
 		flux_df, 
 		sigma_df, 
 		model_path + model_fileroot + '_one_to_one.png',
-		save_order_to = order_data_path,
-		order_number = order_n)
+		save_order_to = order_data_path)
 
 # train cannon models + save stats for all 16 orders
 for order_n in range(1, 17):

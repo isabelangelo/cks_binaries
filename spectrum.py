@@ -1,17 +1,18 @@
 import thecannon as tc
+import numpy as np
 import astropy.units as u
 import astropy.constants as c
 from astropy.io import fits
 from scipy.optimize import leastsq
 
-# define clip size for each order (in pixels)
-# used to generate training set
-order_clip = 200
+# # load wavelength data
+# w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
+# w_data = fits.open(w_filename)[2].data[:, :-1] # require even number of elements
+# w_data = w_data[:, order_clip:-1*order_clip] # clip 5% on each side
 
 # load wavelength data
-w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
-w_data = fits.open(w_filename)[2].data[:, :-1] # require even number of elements
-w_data = w_data[:, order_clip:-1*order_clip] # clip 5% on each side
+reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
+w_data = fits.open(reference_w_filename)[0].data
 
 # define wavelength limits for masks
 sodium_wmin, sodium_wmax = 5889.5, 5896.5
@@ -20,10 +21,11 @@ telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
 telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
 
 class SingleOrderSpectrum(object):
-    def __init__(self, flux, sigma, order_number):
+    def __init__(self, flux, sigma, order_number, cannon_model=None):
+
         # store spectrum information
-        self.flux = np.array(flux[order_clip:-1*order_clip])
-        self.sigma = np.array(sigma[order_clip:-1*order_clip])
+        self.flux = np.array(flux)
+        self.sigma = np.array(sigma)
         self.order_number = order_number
         # store order wavelength
         self.w = w_data[order_number-1]
@@ -31,9 +33,14 @@ class SingleOrderSpectrum(object):
         sodium_mask = np.where((self.w>sodium_wmin) & (self.w<sodium_wmax))[0]
         telluric_mask = np.where((self.w>telluric_wmin) & (self.w<telluric_wmax))[0]
         self.mask = np.array(list(sodium_mask) + list(telluric_mask))
-        # store relevant cannon model
-        model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
-        self.cannon_model = tc.CannonModel.read(model_path)
+        import pdb;pdb.set_trace()
+        # store cannon model information
+        if cannon_model is not None:
+        	self.cannon_model = cannon_model
+        else:
+        	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
+        	self.cannon_model = tc.CannonModel.read(model_path)
+        	
     
     def fit_single_star(self):
         """
