@@ -73,12 +73,8 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 		        flux = model_to_validate.training_set_flux[spectrum_idx]
 		        ivar = model_to_validate.training_set_ivar[spectrum_idx]
 		        sigma = 1/np.sqrt(ivar)
-		        
-		        # fit cross validation model to data (replaced by code below)
-		        # cannon_labels = model_leave1out.test(flux, ivar)[0][0]
 
 		        # fit cross validation mdoel to data
-		        import pdb;pdb.set_trace()
 		        spec = SingleOrderSpectrum(
 		        	flux, 
 		        	sigma, 
@@ -128,11 +124,6 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 		flux_df, 
 		sigma_df)
 
-	# if path_to_save_labels is not None:
-	# 	cannon_label_filename = './data/label_dataframes/'+path_to_save_labels+'.csv'
-	# 	cannon_label_df.to_csv(cannon_label_filename)
-	# 	print('cannon label dataframe saved to {}'.format(cannon_label_filename))
-
 	gs = gridspec.GridSpec(5, 2, width_ratios=[2,1])
 	plt.figure(figsize=(10,17))
 	for i in range(len(labels_to_plot)):
@@ -169,11 +160,6 @@ def plot_one_to_one(order_number, label_df, flux_df, sigma_df,
 			# fit cannon model
 			flux = flux_df[id_starname]
 			sigma = sigma_df[id_starname]
-
-			# replaced by code beloow
-			# ivar = 1/sigma**2
-			# result = model.test(flux, ivar)
-			# teff_fit, logg_fit, met_fit, vsini_fit = result[0][0]
 
 			spec = SingleOrderSpectrum(
 				flux,
@@ -238,16 +224,5 @@ def plot_one_to_one(order_number, label_df, flux_df, sigma_df,
 		plt.subplot(gs[2*i+1])
 		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
-
-
-# okay, I think this code is done.
-# I just need to run a couple tests before running the rest of the code.
-# I think I need to think about how to run this.
-# I would want to just run train_cannon_model again.
-# since it runs the diagnostics.
-# but to test it, can I just load those data frames in a jupyter notebook?
-# it's the plot_one_to_one_leave1out function.
-
-
 
 

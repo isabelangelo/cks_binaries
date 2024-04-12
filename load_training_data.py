@@ -142,7 +142,12 @@ for order_idx in range(0, 16):
     write_training_set_to_file(order_idx)
 
 # write clipped wavelength data to reference file
-
+original_w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
+w_data = fits.open(original_w_filename)[2].data[:, :-1] # require even number of elements
+w_data = w_data[:, order_clip:-1*order_clip] # clip 5% on each side
+reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
+fits.HDUList([fits.PrimaryHDU(w_data)]).writeto(reference_w_filename, overwrite=True)
+print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 
 
 

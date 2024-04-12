@@ -5,17 +5,12 @@ import astropy.constants as c
 from astropy.io import fits
 from scipy.optimize import leastsq
 
-# # load wavelength data
-# w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
-# w_data = fits.open(w_filename)[2].data[:, :-1] # require even number of elements
-# w_data = w_data[:, order_clip:-1*order_clip] # clip 5% on each side
-
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 w_data = fits.open(reference_w_filename)[0].data
 
 # define wavelength limits for masks
-sodium_wmin, sodium_wmax = 5889.5, 5896.5
+sodium_wmin, sodium_wmax = 5889, 5897
 max_v_shift = 30*u.km/u.s 
 telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
 telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
@@ -33,14 +28,12 @@ class SingleOrderSpectrum(object):
         sodium_mask = np.where((self.w>sodium_wmin) & (self.w<sodium_wmax))[0]
         telluric_mask = np.where((self.w>telluric_wmin) & (self.w<telluric_wmax))[0]
         self.mask = np.array(list(sodium_mask) + list(telluric_mask))
-        import pdb;pdb.set_trace()
         # store cannon model information
         if cannon_model is not None:
         	self.cannon_model = cannon_model
         else:
         	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
-        	self.cannon_model = tc.CannonModel.read(model_path)
-        	
+        	self.cannon_model = tc.CannonModel.read(model_path)    	
     
     def fit_single_star(self):
         """
@@ -81,7 +74,8 @@ class SingleOrderSpectrum(object):
         initial_labels[-1] = np.log10(initial_labels[-1]) 
         # perform fit
         result = leastsq(residuals,x0=initial_labels)
-        self.chisq_single = np.sum(residuals(fit_labels)**2)
-        # re-parameterize from log(vbroad) to vbroad
         self.cannon_labels = result[0].copy()
-        self.cannon_labels[-1] = 10**self.cannon_labels[-1]
+        # re-parameterize from log(vbroad) to vbroad
+        self.cannon_labels[-1] = 10**self.cannon_labels[-1] 
+        # compute chisq associated with best-fit labels
+        self.chisq_single = np.sum(residuals(self.cannon_labels)**2)
