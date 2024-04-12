@@ -15,26 +15,25 @@ max_v_shift = 30*u.km/u.s
 telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
 telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
 
-class SingleOrderSpectrum(object):
-    def __init__(self, flux, sigma, order_number, cannon_model=None):
-
+class Spectrum(object):
+    def __init__(self, flux, sigma, order_numbers, cannon_model):
+        
         # store spectrum information
         self.flux = np.array(flux)
         self.sigma = np.array(sigma)
-        self.order_number = order_number
+        self.order_numbers = order_numbers
+        
         # store order wavelength
-        self.w = w_data[order_number-1]
+        self.w = w_data[[i-1 for i in self.order_numbers]].flatten()
+        
         # compute wavelength mask
         sodium_mask = np.where((self.w>sodium_wmin) & (self.w<sodium_wmax))[0]
         telluric_mask = np.where((self.w>telluric_wmin) & (self.w<telluric_wmax))[0]
         self.mask = np.array(list(sodium_mask) + list(telluric_mask))
+        
         # store cannon model information
-        if cannon_model is not None:
-        	self.cannon_model = cannon_model
-        else:
-        	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
-        	self.cannon_model = tc.CannonModel.read(model_path)    	
-    
+        self.cannon_model = cannon_model
+        
     def fit_single_star(self):
         """
         Run the test step on the spectra

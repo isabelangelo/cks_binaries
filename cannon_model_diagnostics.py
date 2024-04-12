@@ -1,14 +1,25 @@
 from astropy.io import fits
 from astropy.table import Table
-from spectrum import SingleOrderSpectrum
+from spectrum import Spectrum
 from spectrum import tc 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import pandas as pd
+import os
 
-def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_path, \
-	save_order_to=None):
+# file with order stats
+order_data_path = './data/cannon_models/rchip_order_stats.csv'
+
+# create file if it doesn't already exist
+if os.path.exists(order_data_path)==False:
+	empty_order_df = pd.DataFrame({'order': [],'label':[],'bias': [],'rms': []})
+	# write the DataFrame to a CSV file
+	empty_order_df.to_csv(order_data_path, index=False)
+
+# if not, should I initialize some sort of dataframe? I'll check the code below.
+
+def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
     labels inferred from the training set spectra. 
@@ -16,21 +27,21 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 	and then use that model to compute the labels for the held out 20%.
 
     Args:
+    	order_numbers (list): numbers for HIRES r chip orders in model 
+                      		e.g., [1,2,6,15,16]
     	order number (int) : number of HIRES r chip spectrum order (1-17)
     	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
-    	flux_df (pd.Dataframe) : flux of sample to plot (n_pixels x n_objects)
-    	sigma_df (pd.Dataframe) : sigma of sample to plot (n_pixels x n_objects)
     	figure_path (str) : full path to save plot to 
-    	path_to_save_labels (str) : full path to save injected + recovered labels, if given
+    	model_suffix (str) : string associated with model to go in filenames
 	"""
 	pc = 'k';markersize=1;alpha_value=0.5
 	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
 
 	# compute model to validate based on order number
-	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
+	model_path = './data/cannon_models/rchip_{}.model'.format(model_suffix)
 	model_to_validate = tc.CannonModel.read(model_path)
 
-	def compute_cannon_labels(label_df, flux_df, sigma_df):
+	def compute_cannon_labels():
 		# define training set labels
 		cks_keys = labels_to_plot
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
@@ -75,12 +86,13 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 		        sigma = 1/np.sqrt(ivar)
 
 		        # fit cross validation mdoel to data
-		        spec = SingleOrderSpectrum(
-		        	flux, 
-		        	sigma, 
-		        	order_number, 
-		        	cannon_model=model_leave1out)
+		       	spec = Spectrum(
+				    flux, 
+				    sigma, 
+				    order_numbers, 
+				    model_leave1out)
 		        spec.fit_single_star()
+
 		        cannon_labels = spec.cannon_labels
 
 		        # store data for plot
@@ -105,12 +117,11 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 		plt.plot([x.min(), x.max()], [x.min(), x.max()], lw=0.7, color='#AA8ED9')
 		plt.legend(loc='upper left', frameon=False, labelcolor='firebrick')
 		# save order stats to file
-		if save_order_to is not None:
-			stats_dict = {'order': order_number, 'label':label, 'bias':bias, 'rms': rms}
-			existing_order_data = pd.read_csv(save_order_to)
-			updated_order_data  = pd.concat(
-				[existing_order_data, pd.DataFrame([stats_dict])])
-			updated_order_data.to_csv(save_order_to, index=False)
+		stats_dict = {'model': model_suffix, 'label':label, 'bias':bias, 'rms': rms}
+		existing_order_data = pd.read_csv(order_data_path)
+		updated_order_data  = pd.concat(
+			[existing_order_data, pd.DataFrame([stats_dict])])
+		updated_order_data.to_csv(order_data_path, index=False)
 
 	def plot_label_difference(label_df, label):
 	    x = label_df['cks_{}'.format(label)]
@@ -119,108 +130,13 @@ def plot_one_to_one_leave1out(order_number, label_df, flux_df, sigma_df, figure_
 	    plt.hist(diff, histtype='step', color=pc)
 	    plt.xlabel(r'$\Delta {}$'.format(label))
 
-	cannon_label_df = compute_cannon_labels(
-		label_df, 
-		flux_df, 
-		sigma_df)
+	cannon_label_df = compute_cannon_labels()
 
 	gs = gridspec.GridSpec(5, 2, width_ratios=[2,1])
 	plt.figure(figsize=(10,17))
 	for i in range(len(labels_to_plot)):
 		plt.subplot(gs[2*i])
 		plot_label_one_to_one(cannon_label_df, labels_to_plot[i][4:])
-		plt.subplot(gs[2*i+1])
-		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
-	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
-
-
-def plot_one_to_one(order_number, label_df, flux_df, sigma_df, 
-	figure_path, path_to_save_labels=None):
-	"""
-	Plot a one-to-one comparison of the training set labels from GALAH and the Cannon
-	labels inferred from the training set spectra.
-	"""
-	pc = 'k';markersize=1;alpha_value=0.5
-	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
-
-	# compute model to validate based on order number
-	model_path = './data/cannon_models/rchip_order{}.model'.format(order_number)
-	model = tc.CannonModel.read(model_path)
-
-	def compute_cannon_labels(label_df, flux_df, sigma_df):
-		cks_keys = labels_to_plot
-		cannon_keys = [key.replace('cks','cannon') for key in labels_to_plot]
-
-		cannon_label_data = []
-		# iterate over each object
-		for id_starname in label_df.id_starname.to_numpy():
-			# store galah labels
-			row = label_df.loc[label_df.id_starname==id_starname]
-			cks_labels = row[cks_keys].values.flatten().tolist()
-			# fit cannon model
-			flux = flux_df[id_starname]
-			sigma = sigma_df[id_starname]
-
-			spec = SingleOrderSpectrum(
-				flux,
-				sigma,
-				order_number)
-			spec.fit_single_star()
-			teff_fit, logg_fit, met_fit, vsini_fit = spec.cannon_labels
-
-			# store cannon labels
-			cannon_labels = [teff_fit, logg_fit, met_fit, vsini_fit]
-			# convert to dictionary
-			keys = ['id_starname'] + cks_keys + cannon_keys
-			values = [id_starname] + cks_labels + cannon_labels
-			cannon_label_data.append(dict(zip(keys, values)))
-
-		cannon_label_df = pd.DataFrame(cannon_label_data)
-		return cannon_label_df
-
-	def plot_label_one_to_one(cannon_label_df, training_label_df, label):
-		x = cannon_label_df['cks_{}'.format(label)]
-		y = cannon_label_df['cannon_{}'.format(label)]
-		# model performance metrics
-		diff = y - x
-		bias = np.round(np.mean(diff), 3)
-		rms = np.round(np.sqrt(np.sum(diff**2)/len(diff)), 3)
-
-		# CKS label uncertainty (expected performance)
-		error_arr1 = training_label_df['cks_'+label+'_err1'].to_numpy()
-		error_arr2 = training_label_df['cks_'+label+'_err2'].to_numpy()
-		error = np.abs(np.vstack((error_arr1, error_arr2))).flatten()
-		error = np.round(np.median(error), 3)
-
-		subplot_label = 'bias, rms = {}, {}\navg. CKS error={}'.format(bias, rms, error)
-		plt.plot(x, y, '.', color=pc, ms=markersize, alpha=alpha_value)
-		plt.plot([], [], '.', color='w', label=subplot_label)
-		plt.xlabel('CKS {}'.format(label));plt.ylabel('Cannon {}'.format(label))
-		plt.plot([x.min(), x.max()], [x.min(), x.max()], lw=0.7, color='#AA8ED9')
-		plt.legend(loc='upper left', frameon=False, labelcolor='firebrick')
-
-	def plot_label_difference(cannon_label_df, label):
-		x = cannon_label_df['cks_{}'.format(label)]
-		y = cannon_label_df['cannon_{}'.format(label)]
-		diff = y - x
-		plt.hist(diff, histtype='step', color=pc)
-		plt.xlabel(r'$\Delta {}$'.format(label))
-
-	cannon_label_df = compute_cannon_labels(
-		label_df, 
-		flux_df, 
-		sigma_df)
-
-	if path_to_save_labels is not None:
-		cannon_label_filename = './'+path_to_save_labels+'.csv'
-		cannon_label_df.to_csv(cannon_label_filename)
-		print('cannon label dataframe saved to {}'.format(cannon_label_filename))
-
-	gs = gridspec.GridSpec(5, 2, width_ratios=[2,1])
-	plt.figure(figsize=(10,17))
-	for i in range(len(labels_to_plot)):
-		plt.subplot(gs[2*i])
-		plot_label_one_to_one(cannon_label_df, label_df, labels_to_plot[i][4:])
 		plt.subplot(gs[2*i+1])
 		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
