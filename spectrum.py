@@ -16,6 +16,16 @@ telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
 telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
 
 class Spectrum(object):
+    """
+    HIRES spectrum object
+    
+    Args:
+        flux (np.array): flux of object
+        sigma (np.array): flux errors of object
+        order_numbers (array-like): order numbers to include, 1-16 for HIRES r chip
+                        e.g., [1,2,6,15,16]
+        cannon_model (tc.CannonModel): Cannon model object to use to model spectrum
+    """
     def __init__(self, flux, sigma, order_numbers, cannon_model):
         
         # store spectrum information

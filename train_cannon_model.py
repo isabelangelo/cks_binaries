@@ -67,10 +67,6 @@ def train_cannon_model(order_numbers, model_suffix):
     # generate one-to-one plots
     print('generating one-to-one diagnostic plot using leave-one-out cross-validation...')
     training_df_path = './data/cks-spectra_dataframes/'
-    # flux_df_filename = training_df_path + 'training_flux_order{}.csv'.format(order_n)
-    # sigma_df_filename = training_df_path + 'training_sigma_order{}.csv'.format(order_n)
-    # flux_df = pd.read_csv(flux_df_filename)
-    # sigma_df = pd.read_csv(sigma_df_filename)
     plot_one_to_one_leave1out(
         order_numbers, 
         training_set.to_pandas(), 
@@ -78,24 +74,17 @@ def train_cannon_model(order_numbers, model_suffix):
         model_suffix)
 
 # train cannon models + save stats for all 16 individual orders
-# for order_n in range(1, 17):
-#     train_cannon_model([order_n], 'order{}'.format(order_n))
+for order_n in range(1, 17):
+    train_cannon_model([order_n], 'order{}'.format(order_n))
 
-# tests 
-#train_cannon_model([1], 'order1_test'.format(order_n))
-train_cannon_model([1,2], 'order1+2_test')
+# train cannon model + save stats for all 16 orders combined
+all_orders_list = np.arange(1,17,1).tolist()
+train_cannon_model(all_orders_list, 'all_orders')
 
-# # train cannon model + save stats for all 16 orders combined
-# all_orders_list = np.arange(1,17,1).tolist()
-# train_cannon_model(all_orders_list, 'all_orders')
+# train cannon model + save stats for all orders except 11+12
+no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
+train_cannon_model(no_sodium_list, 'orders_11-12_omitted')
 
-# I wrote some code that should work with multiple orders almost
-# it worked on a single order
-# except it created a new file for the stats and I can't find the old one.
-# let me test it on multiple orders, hopefully it won't write a new file.
-# oh but maybe overwrite=True?
-# let me check.
-# but then I'll need to run on all the orders, plus the full model, so I have those stats saved.
 
 
 
