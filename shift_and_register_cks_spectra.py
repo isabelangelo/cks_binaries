@@ -6,7 +6,7 @@ from specmatchemp import SHIFT_REFERENCES
 from specmatchemp.library import read_hdf as read_sm_lib
 from specmatchemp.shift import shift, bootstrap_shift
 from specmatchemp.spectrum import read_fits, read_hires_fits
-from specmatchemp.spectrum import Spectrum
+from specmatchemp.spectrum import Spectrum as SMSpectrum
 from specmatchemp.specmatch import SpecMatch
 import numpy as np
 import glob
@@ -52,7 +52,7 @@ for filename in spectrum_filenames:
     for order_idx in range(target.w.shape[0]):
         # order numbers are not zero-indexed
         order_n = order_idx+1 
-        order = Spectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
+        order = SMSpectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
         shifted_order = shift(order, best_ref_spec)
 
         # extend spectrum to correct size for rescaling
@@ -96,7 +96,7 @@ for filename in kepler1656_raw_spectra_filenames:
         # order numbers are not zero-indexed
         order_n = order_idx+1 
 
-        order = Spectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
+        order = SMSpectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
         shifted_order = shift(order, best_ref_spec)
 
         # extend spectrum to correct size for rescaling

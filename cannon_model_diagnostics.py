@@ -45,6 +45,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 		# define training set labels
 		cks_keys = labels_to_plot
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
+		metric_keys = ['chisq', 'training_density']
 		vectorizer = tc.vectorizer.PolynomialVectorizer(cks_keys, 2)
 
 		# bin training data into 5 test sets
@@ -97,11 +98,14 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 
 		        # store data for plot
 		        keys = cks_keys + cannon_keys + ['test_number']
-		        values = cks_labels.tolist() + cannon_labels.tolist() + [i]
+		        values = cks_labels.tolist() + cannon_labels.tolist() + [i, spec.fit_chisq, spec.training_density]
 		        cannon_label_data.append(dict(zip(keys, values)))
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
+		cannon_label_path = './data/cannon_models/rchip_{}_cannon_labels.csv'.format(model_suffix)
+		print('saving training set cannon output labels to {}'.format(cannon_label_path))
+		cannon_label_df.to_csv(cannon_label_path)
 		return cannon_label_df
 
 	def plot_label_one_to_one(label_df, label):
@@ -140,5 +144,9 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 		plt.subplot(gs[2*i+1])
 		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
+
+
+
+
 
 

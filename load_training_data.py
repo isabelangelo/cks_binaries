@@ -3,7 +3,7 @@ Loads labels + HIRES spectra for the Cannon training and test sets.
 """
 from specmatchemp.spectrum import read_hires_fits
 from astropy.io import fits
-import spectrum_dwt
+import dwt
 import pandas as pd
 import numpy as np
 import glob
@@ -80,6 +80,7 @@ kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
 kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
+print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # write to .csv file
 cks_stars.to_csv('./data/label_dataframes/training_labels.csv')
@@ -129,7 +130,7 @@ def write_training_set_to_file(order_idx):
         # compute wavelet transform of flux
         level_min, level_max = 1,8
         waverec_levels = np.arange(level_min,level_max+1,1)
-        flux_waverec = spectrum_dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
+        flux_waverec = dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
         flux_waverec += 1 # normalize to 1 for training
 
         # clip order on each end

@@ -3,6 +3,7 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as c
 from astropy.io import fits
+from scipy import stats
 from scipy.optimize import leastsq
 
 # load wavelength data
@@ -20,7 +21,7 @@ class Spectrum(object):
     HIRES spectrum object
     
     Args:
-        flux (np.array): flux of object
+        flux (np.array): flux of object, post-wavelet transform
         sigma (np.array): flux errors of object
         order_numbers (array-like): order numbers to include, 1-16 for HIRES r chip
                         e.g., [1,2,6,15,16]
@@ -43,6 +44,8 @@ class Spectrum(object):
         
         # store cannon model information
         self.cannon_model = cannon_model
+        training_data = spec.cannon_model.training_set_labels
+        self.training_density_kde = stats.gaussian_kde(training_data.T)
         
     def fit_single_star(self):
         """
@@ -83,8 +86,20 @@ class Spectrum(object):
         initial_labels[-1] = np.log10(initial_labels[-1]) 
         # perform fit
         result = leastsq(residuals,x0=initial_labels)
-        self.cannon_labels = result[0].copy()
+        self.fit_cannon_labels = result[0].copy()
         # re-parameterize from log(vbroad) to vbroad
-        self.cannon_labels[-1] = 10**self.cannon_labels[-1] 
-        # compute chisq associated with best-fit labels
-        self.chisq_single = np.sum(residuals(self.cannon_labels)**2)
+        self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
+        # compute metrics associated with best-fit labels
+        self.fit_chisq = np.sum(residuals(self.fit_cannon_labels)**2)
+        self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
+    
+
+
+
+
+
+
+
+
+
+
