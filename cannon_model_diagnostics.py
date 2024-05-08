@@ -52,7 +52,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 		n_training = len(model_to_validate.training_set_labels)
 		test_size = n_training // 5
 		test_bins = np.arange(0,n_training,test_size)
-		test_bins[-1]= n_training - 1 # include remainder in last chunk
+		test_bins[-1]= n_training # include remainder in last chunk
 
 		# perform leave-20%-out cross validation for each bin
 		cannon_label_data = []
@@ -94,10 +94,10 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 				    model_leave1out)
 		        spec.fit_single_star()
 
-		        cannon_labels = spec.cannon_labels
+		        cannon_labels = spec.fit_cannon_labels
 
 		        # store data for plot
-		        keys = cks_keys + cannon_keys + ['test_number']
+		        keys = cks_keys + cannon_keys + ['test_number'] + metric_keys
 		        values = cks_labels.tolist() + cannon_labels.tolist() + [i, spec.fit_chisq, spec.training_density]
 		        cannon_label_data.append(dict(zip(keys, values)))
 
