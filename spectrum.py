@@ -44,7 +44,7 @@ class Spectrum(object):
         
         # store cannon model information
         self.cannon_model = cannon_model
-        training_data = spec.cannon_model.training_set_labels
+        training_data = self.cannon_model.training_set_labels
         self.training_density_kde = stats.gaussian_kde(training_data.T)
         
     def fit_single_star(self):

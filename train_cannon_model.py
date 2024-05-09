@@ -73,13 +73,13 @@ def train_cannon_model(order_numbers, model_suffix):
         model_path + model_fileroot + '_one_to_one.png',
         model_suffix)
 
-# train cannon models + save stats for all 16 individual orders
-for order_n in range(1, 17):
-    train_cannon_model([order_n], 'order{}'.format(order_n))
+# # train cannon models + save stats for all 16 individual orders
+# for order_n in range(1, 17):
+#     train_cannon_model([order_n], 'order{}'.format(order_n))
 
-# train cannon model + save stats for all 16 orders combined
-all_orders_list = np.arange(1,17,1).tolist()
-train_cannon_model(all_orders_list, 'all_orders')
+# # train cannon model + save stats for all 16 orders combined
+# all_orders_list = np.arange(1,17,1).tolist()
+# train_cannon_model(all_orders_list, 'all_orders')
 
 # train cannon model + save stats for all orders except 11+12
 no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]

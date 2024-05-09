@@ -42,10 +42,6 @@ training_set_labels = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
 cks_stars = cks_stars.dropna(subset=training_set_labels)
 print(len(cks_stars), 'with finite training set labels')
 
-# require main sequence stars
-cks_stars = cks_stars.query('cks_slogg > 4')
-print(len(cks_stars), 'remaining after requiring logg>4')
-
 # remove stars with low SNR
 low_sigma_idx_to_remove = []
 for i in range(len(cks_stars)):

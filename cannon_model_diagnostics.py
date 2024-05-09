@@ -11,6 +11,9 @@ import os
 # file with order stats
 order_data_path = './data/cannon_models/rchip_order_stats.csv'
 
+# dataframe with trainig labels + object names
+training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
+
 # create file if it doesn't already exist
 if os.path.exists(order_data_path)==False:
 	empty_order_df = pd.DataFrame({'order': [],'label':[],'bias': [],'rms': []})
@@ -57,49 +60,52 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 		# perform leave-20%-out cross validation for each bin
 		cannon_label_data = []
 		for i in range(len(test_bins)-1):
-		    
-		    # define index bounds of left out sample
-		    start_idx, stop_idx = test_bins[i], test_bins[i+1]
-		    s = slice(start_idx, stop_idx)
-		    print('training model with objects {}-{} held out'.format(
-		    	start_idx, stop_idx))
-		    
-		    # remove left out targets from original training data
-		    training_set_labels_leave1out = np.delete(model_to_validate.training_set_labels, s, 0)
-		    training_set_leave1out = Table(training_set_labels_leave1out, names=cks_keys)
-		    normalized_flux_leave1out = np.delete(model_to_validate.training_set_flux, s, 0)
-		    normalized_ivar_leave1out = np.delete(model_to_validate.training_set_ivar, s, 0)
 
-		    # train model for cross validation
-		    model_leave1out = tc.CannonModel(
-		        training_set_leave1out, 
-		        normalized_flux_leave1out, 
-		        normalized_ivar_leave1out,
-		        vectorizer=vectorizer, 
-		        regularization=None)
-		    model_leave1out.train()
-		    
-		    # store labels, flux + sigma for left out targets
-		    for spectrum_idx in range(start_idx, stop_idx):
-		        cks_labels = model_to_validate.training_set_labels[spectrum_idx]
-		        flux = model_to_validate.training_set_flux[spectrum_idx]
-		        ivar = model_to_validate.training_set_ivar[spectrum_idx]
-		        sigma = 1/np.sqrt(ivar)
+			# define index bounds of left out sample
+			start_idx, stop_idx = test_bins[i], test_bins[i+1]
+			s = slice(start_idx, stop_idx)
+			print('training model with objects {}-{} held out'.format(
+				start_idx, stop_idx))
 
-		        # fit cross validation mdoel to data
-		       	spec = Spectrum(
-				    flux, 
-				    sigma, 
-				    order_numbers, 
-				    model_leave1out)
-		        spec.fit_single_star()
+			# remove left out targets from original training data
+			training_set_labels_leave1out = np.delete(model_to_validate.training_set_labels, s, 0)
+			training_set_leave1out = Table(training_set_labels_leave1out, names=cks_keys)
+			normalized_flux_leave1out = np.delete(model_to_validate.training_set_flux, s, 0)
+			normalized_ivar_leave1out = np.delete(model_to_validate.training_set_ivar, s, 0)
 
-		        cannon_labels = spec.fit_cannon_labels
+			# train model for cross validation
+			model_leave1out = tc.CannonModel(
+			    training_set_leave1out, 
+			    normalized_flux_leave1out, 
+			    normalized_ivar_leave1out,
+			    vectorizer=vectorizer, 
+			    regularization=None)
+			model_leave1out.train()
 
-		        # store data for plot
-		        keys = cks_keys + cannon_keys + ['test_number'] + metric_keys
-		        values = cks_labels.tolist() + cannon_labels.tolist() + [i, spec.fit_chisq, spec.training_density]
-		        cannon_label_data.append(dict(zip(keys, values)))
+			# store labels, flux + sigma for left out targets
+			for spectrum_idx in range(start_idx, stop_idx):
+				# load object name from training label dataframe
+				id_starname = training_label_df.iloc[spectrum_idx].id_starname
+				# load object labels, flux, ivar from saved model data
+				cks_labels = model_to_validate.training_set_labels[spectrum_idx]
+				flux = model_to_validate.training_set_flux[spectrum_idx]
+				ivar = model_to_validate.training_set_ivar[spectrum_idx]
+				sigma = 1/np.sqrt(ivar)
+
+				# fit cross validation mdoel to data
+				spec = Spectrum(
+					flux, 
+					sigma, 
+					order_numbers, 
+					model_leave1out)
+				spec.fit_single_star()
+				cannon_labels = spec.fit_cannon_labels
+
+				# store data for plot
+				keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
+				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
+						+ [spec.fit_chisq, spec.training_density]
+				cannon_label_data.append(dict(zip(keys, values)))
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)

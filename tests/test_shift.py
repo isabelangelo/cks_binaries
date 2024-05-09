@@ -12,7 +12,7 @@ lib = specmatchemp.library.read_hdf()
 print('gathering filenames')
 
 # shift spectrum
-spectrum_filenames = glob.glob('./data/cks-spectra/*rj*.fits')
+spectrum_filenames = glob.glob('../data/cks-spectra/*rj*.fits')
 
 def shift_spectrum(spectrum_filename):
 	hires_spectrum = spectrum.read_hires_fits(spectrum_filename)
