@@ -96,7 +96,7 @@ print('training labels saved to .csv file')
 # ============ write training flux, sigma to files  ================================================
 
 # re-write code below to save data for particular order
-def single_order_training_data(order_idx):
+def single_order_training_data(order_idx, filter_wavelets=True):
 
     # order numbers are not zero-indexed
     order_n = order_idx + 1
@@ -136,18 +136,20 @@ def single_order_training_data(order_idx):
             flux_norm = flux_norm[:-1]
             sigma_norm = sigma_norm[:-1]
 
-        # compute wavelet transform of flux
-        level_min, level_max = 1,8
-        waverec_levels = np.arange(level_min,level_max+1,1)
-        flux_waverec = dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
-        flux_waverec += 1 # normalize to 1 for training
+        if filter_wavelets:
+            # compute wavelet transform of flux
+            level_min, level_max = 1,8
+            waverec_levels = np.arange(level_min,level_max+1,1)
+            flux_waverec = dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
+            flux_waverec += 1 # normalize to 1 for training
+            flux_norm = flux_waverec
 
         # clip order on each end
-        flux_waverec = flux_waverec[order_clip:-1*order_clip]
+        flux_norm = flux_norm[order_clip:-1*order_clip]
         sigma_norm = sigma_norm[order_clip:-1*order_clip]
 
         # save to lists
-        flux_list.append(flux_waverec) 
+        flux_list.append(flux_norm) 
         sigma_list.append(sigma_norm)
         id_starname_list.append(row.id_starname)
 
@@ -161,25 +163,28 @@ def single_order_training_data(order_idx):
 
     return flux_df_n, sigma_df_n
 
-# write training set flux, sigma for all orders to single file
-flux_df = pd.DataFrame()
-sigma_df = pd.DataFrame()
+# write wavelet filtered training set flux, sigma to files
+flux_df_dwt = pd.DataFrame()
+sigma_df_dwt = pd.DataFrame()
 for order_idx in range(0, 16):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx)
-    flux_df = pd.concat([flux_df, flux_df_n])
-    sigma_df = pd.concat([sigma_df, sigma_df_n])
-flux_df.to_csv('{}/training_flux.csv'.format(df_path), index=False)
-sigma_df.to_csv('{}/training_sigma.csv'.format(df_path), index=False)
-print('training flux and sigma saved to .csv files')
+    flux_df_dwt = pd.concat([flux_df_dwt, flux_df_n])
+    sigma_df_dwt = pd.concat([sigma_df_dwt, sigma_df_n])
+flux_df_dwt.to_csv('{}/training_flux_dwt.csv'.format(df_path), index=False)
+sigma_df_dwt.to_csv('{}/training_sigma_dwt.csv'.format(df_path), index=False)
+print('wavelet-filtered training flux and sigma saved to .csv files')
 
-# okay, this will save them to dataframes 
-# I'll run this and then I want to generate the same one 
-# but without the wavelet decomposition
-# what should the variable be called?
-# should it be called wavelet_filtering=True?
-# let me see what that paper calls it
-# I think I'll call it filter_wavelets = True
-# then I'll run it again to generate both datasets.
+# write training set flux, sigma for all orders to single file
+# write wavelet filtered training set flux, sigma to files
+flux_df_original = pd.DataFrame()
+sigma_df_original = pd.DataFrame()
+for order_idx in range(0, 16):
+    flux_df_n, sigma_df_n = single_order_training_data(order_idx, filter_wavelets=False)
+    flux_df_original = pd.concat([flux_df_original, flux_df_n])
+    sigma_df_original = pd.concat([sigma_df_original, sigma_df_n])
+flux_df_original.to_csv('{}/training_flux_original.csv'.format(df_path), index=False)
+sigma_df_original.to_csv('{}/training_sigma_original.csv'.format(df_path), index=False)
+print('training flux and sigma pre wavelet filter saved to .csv files')
 
 
 

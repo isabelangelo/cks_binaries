@@ -7,48 +7,80 @@ import pandas as pd
 import thecannon as tc
 from cannon_model_diagnostics import *
 
-def train_cannon_model(order_numbers, model_suffix):
+# define training set labels
+training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
+
+# Load the table containing the training set labels
+training_set_table = Table.read('./data/label_dataframes/training_labels.csv', format='csv')
+training_set = training_set_table[training_labels]
+
+# Load the dataframe containing the training set flux, sigma
+training_data_path = './data/cannon_training_data/'
+training_flux_original = pd.read_csv(training_data_path+'training_flux_original.csv')
+training_sigma_original = pd.read_csv(training_data_path+'training_flux_original.csv')
+training_flux_dwt = pd.read_csv(training_data_path+'training_flux_dwt.csv')
+training_sigma_dwt = pd.read_csv(training_data_path+'training_flux_dwt.csv')
+
+
+def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_training_data=False):
     """
     Trains a Cannon model using all the orders specified in order_numbers
     order_numbers (list): order numbers to train on, 1-16 for HIRES r chip
                         e.g., [1,2,6,15,16]
-    model suffix (str): file ending for Cannon model 
+    model_suffix (str): file ending for Cannon model 
                         (for example, 'order4' will save to rchip_order4.model)
+    filter_type (str): if 'dwt', model is trained on wavelet filtered data.
+                       if 'original', model is trained on SpecMatch-Emp output data.
     """
 
     # path to save model files to, 
     # should be descriptive of current model to be trained
     model_fileroot = 'rchip_{}.model'.format(model_suffix)
 
-    # define training set labels
-    training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
+    # determine dataframe that contains training data
+    if filter_wavelets:
+        flux_df = training_flux_dwt
+        sigma_df = training_sigma_dwt
+    else:
+        flux_df = training_flux_original
+        sigma_df = training_sigma_original
 
-    # Load the table containing the training set labels
-    training_set_table = Table.read('./data/label_dataframes/training_labels.csv', format='csv')
-    training_set = training_set_table[training_labels]
+    training_flux_df = flux_df[flux_df['order_number'].isin(order_numbers)]
+    training_sigma_df = sigma_df[sigma_df['order_number'].isin(order_numbers)]
+    normalized_flux = training_flux_df.to_numpy()[:,1:].T
+    normalized_sigma = training_sigma_df.to_numpy()[:,1:].T
 
-    # store training flux, sigma
-    training_data_path = './data/cannon_training_data/'
-    normalized_flux = np.array([])
-    normalized_ivar = np.array([])
-    training_arrs_created = False
+    # # store training flux, sigma
+    # normalized_flux = np.array([])
+    # normalized_ivar = np.array([])
+    # training_arrs_created = False
 
-    for order_n in order_numbers:
-        normalized_flux_filename = training_data_path + 'training_flux_order{}.fits'.format(order_n)
-        normalized_sigma_filename = training_data_path + 'training_sigma_order{}.fits'.format(order_n)
+    # for order_n in order_numbers:
 
-        normalized_flux_n = fits.open(normalized_flux_filename)[0].data
-        normalized_sigma_n = fits.open(normalized_sigma_filename)[0].data
-        normalized_ivar_n = 1/normalized_sigma_n**2
+    #     # load flux from dataframe
+    #     n_str = 'order_number==@order_n'
+    #     normalized_flux_n = training_flux_df.query(n_str).to_numpy()[:,1:].T
+    #     normalized_sigma_n = training_sigma_df.query(n_str).to_numpy()[:,1:].T
+    #     normalized_ivar_n = 1/normalized_sigma_n**2
 
-        if training_arrs_created != True:
-            normalized_flux = normalized_flux_n
-            normalized_ivar = normalized_ivar_n
-            training_arrs_created = True
+    #     # append to full training data array
+    #     if training_arrs_created != True:
+    #         normalized_flux = normalized_flux_n
+    #         normalized_ivar = normalized_ivar_n
+    #         training_arrs_created = True
+    #     else:
+    #         normalized_flux = np.hstack((normalized_flux, normalized_flux_n))
+    #         normalized_ivar = np.hstack((normalized_ivar, normalized_ivar_n))
 
-        else:
-            normalized_flux = np.hstack((normalized_flux, normalized_flux_n))
-            normalized_ivar = np.hstack((normalized_ivar, normalized_ivar_n))
+    # save training data to a .csv
+    if save_training_data:
+        flux_path = '{}training_flux_{}_{}.csv'.format(
+            training_data_path,model_suffix,filter_type)
+        sigma_path = '{}training_sigma_{}_{}.csv'.format(
+            training_data_path,model_suffix,filter_type)
+        training_flux_df.to_csv(flux_path)
+        training_flux_df.to_csv(sigma_path)
+
 
     # Create a vectorizer that defines our model form.
     vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
@@ -82,11 +114,24 @@ def train_cannon_model(order_numbers, model_suffix):
 # train_cannon_model(all_orders_list, 'all_orders')
 
 # train cannon model + save stats for all orders except 11+12
+# no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
+# train_cannon_model(no_sodium_list, 'orders_11-12_omitted')
+
+# train cannon models
+# all 16 individual orders
+for order_n in range(1, 17):
+    train_cannon_model([order_n], 'order{}'.format(order_n))
+
+# all 16 orders combined
+all_orders_list = np.arange(1,17,1).tolist()
+train_cannon_model(all_orders_list, 'all_orders')
+
+# all orders except 11+12 + save training data
 no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-train_cannon_model(no_sodium_list, 'orders_11-12_omitted')
+train_cannon_model(no_sodium_list, 'orders_11-12_omitted', save_training_data=True)
 
-
-
-
+# orders except 11+12, without wavelet filtering
+no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
+train_cannon_model(no_sodium_list, 'orders_11-12_omitted', filter_type='dwt')
 
 
