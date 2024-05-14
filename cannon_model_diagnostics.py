@@ -16,7 +16,7 @@ training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
 
 # create file if it doesn't already exist
 if os.path.exists(order_data_path)==False:
-	empty_order_df = pd.DataFrame({'order': [],'label':[],'bias': [],'rms': []})
+	empty_order_df = pd.DataFrame({'model': [],'label':[],'bias': [],'rms': []})
 	# write the DataFrame to a CSV file
 	empty_order_df.to_csv(order_data_path, index=False)
 

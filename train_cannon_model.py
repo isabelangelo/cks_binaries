@@ -38,49 +38,28 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     model_fileroot = 'rchip_{}.model'.format(model_suffix)
 
     # determine dataframe that contains training data
-    if filter_wavelets:
+    if filter_type=='dwt':
         flux_df = training_flux_dwt
         sigma_df = training_sigma_dwt
     else:
         flux_df = training_flux_original
         sigma_df = training_sigma_original
 
+    # store training flux, sigma for selected orders
     training_flux_df = flux_df[flux_df['order_number'].isin(order_numbers)]
     training_sigma_df = sigma_df[sigma_df['order_number'].isin(order_numbers)]
     normalized_flux = training_flux_df.to_numpy()[:,1:].T
     normalized_sigma = training_sigma_df.to_numpy()[:,1:].T
-
-    # # store training flux, sigma
-    # normalized_flux = np.array([])
-    # normalized_ivar = np.array([])
-    # training_arrs_created = False
-
-    # for order_n in order_numbers:
-
-    #     # load flux from dataframe
-    #     n_str = 'order_number==@order_n'
-    #     normalized_flux_n = training_flux_df.query(n_str).to_numpy()[:,1:].T
-    #     normalized_sigma_n = training_sigma_df.query(n_str).to_numpy()[:,1:].T
-    #     normalized_ivar_n = 1/normalized_sigma_n**2
-
-    #     # append to full training data array
-    #     if training_arrs_created != True:
-    #         normalized_flux = normalized_flux_n
-    #         normalized_ivar = normalized_ivar_n
-    #         training_arrs_created = True
-    #     else:
-    #         normalized_flux = np.hstack((normalized_flux, normalized_flux_n))
-    #         normalized_ivar = np.hstack((normalized_ivar, normalized_ivar_n))
+    normalized_ivar = 1/normalized_sigma**2
 
     # save training data to a .csv
     if save_training_data:
-        flux_path = '{}training_flux_{}_{}.csv'.format(
-            training_data_path,model_suffix,filter_type)
-        sigma_path = '{}training_sigma_{}_{}.csv'.format(
-            training_data_path,model_suffix,filter_type)
+        flux_path = '{}training_flux_{}.csv'.format(
+            training_data_path,model_suffix)
+        sigma_path = '{}training_sigma_{}.csv'.format(
+            training_data_path,model_suffix)
         training_flux_df.to_csv(flux_path)
         training_flux_df.to_csv(sigma_path)
-
 
     # Create a vectorizer that defines our model form.
     vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
@@ -105,33 +84,36 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
         model_path + model_fileroot + '_one_to_one.png',
         model_suffix)
 
-# # train cannon models + save stats for all 16 individual orders
+#### train cannon models with wavelet filters ###
+# all 16 individual orders
 # for order_n in range(1, 17):
-#     train_cannon_model([order_n], 'order{}'.format(order_n))
+#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
 
-# # train cannon model + save stats for all 16 orders combined
+# # all 16 orders combined
 # all_orders_list = np.arange(1,17,1).tolist()
-# train_cannon_model(all_orders_list, 'all_orders')
+# train_cannon_model(all_orders_list, 'all_orders_dwt')
 
-# train cannon model + save stats for all orders except 11+12
+# # all orders except 11+12 + save training data
 # no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-# train_cannon_model(no_sodium_list, 'orders_11-12_omitted')
+# train_cannon_model(no_sodium_list, 'orders_11-12_omitted_dwt', save_training_data=True)
 
-# train cannon models
+#### train cannon models with original spectra ###
 # all 16 individual orders
 for order_n in range(1, 17):
-    train_cannon_model([order_n], 'order{}'.format(order_n))
+    train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
-# all 16 orders combined
-all_orders_list = np.arange(1,17,1).tolist()
-train_cannon_model(all_orders_list, 'all_orders')
+# # all 16 orders combined
+# all_orders_list = np.arange(1,17,1).tolist()
+# train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
 
-# all orders except 11+12 + save training data
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-train_cannon_model(no_sodium_list, 'orders_11-12_omitted', save_training_data=True)
+# # orders except 11+12, without wavelet filtering
+# no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
+# train_cannon_model(no_sodium_list, 'orders_11-12_omitted_original', filter_type='original')
 
-# orders except 11+12, without wavelet filtering
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-train_cannon_model(no_sodium_list, 'orders_11-12_omitted', filter_type='dwt')
+
+
+
+
+
 
 
