@@ -174,8 +174,7 @@ flux_df_dwt.to_csv('{}/training_flux_dwt.csv'.format(df_path), index=False)
 sigma_df_dwt.to_csv('{}/training_sigma_dwt.csv'.format(df_path), index=False)
 print('wavelet-filtered training flux and sigma saved to .csv files')
 
-# write training set flux, sigma for all orders to single file
-# write wavelet filtered training set flux, sigma to files
+# write original training set flux, sigma to files
 flux_df_original = pd.DataFrame()
 sigma_df_original = pd.DataFrame()
 for order_idx in range(0, 16):
