@@ -92,7 +92,9 @@ class Spectrum(object):
         # compute metrics associated with best-fit labels
         self.fit_chisq = np.sum(residuals(self.fit_cannon_labels)**2)
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
-    
+        # compute residuals of best-fit model
+        self.model_flux = self.cannon_model(self.fit_cannon_labels)
+        self.residuals = self.flux - self.model_flux
 
 
 
