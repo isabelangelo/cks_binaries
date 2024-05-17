@@ -2,6 +2,7 @@ import thecannon as tc
 import numpy as np
 import astropy.units as u
 import astropy.constants as c
+import matplotlib.pyplot as plt
 from astropy.io import fits
 from scipy import stats
 from scipy.optimize import leastsq
@@ -23,8 +24,8 @@ class Spectrum(object):
     Args:
         flux (np.array): flux of object, post-wavelet transform
         sigma (np.array): flux errors of object
-        order_numbers (array-like): order numbers to include, 1-16 for HIRES r chip
-                        e.g., [1,2,6,15,16]
+        order_numbers (int or array-like): order numbers to include, 1-16 for HIRES r chip
+                        e.g., 4, [1,2,6,15,16]
         cannon_model (tc.CannonModel): Cannon model object to use to model spectrum
     """
     def __init__(self, flux, sigma, order_numbers, cannon_model):
@@ -32,7 +33,12 @@ class Spectrum(object):
         # store spectrum information
         self.flux = np.array(flux)
         self.sigma = np.array(sigma)
-        self.order_numbers = order_numbers
+
+        # convert single order to list
+        if type(order_numbers)==int:
+            self.order_numbers = [order_numbers]
+        else:
+            self.order_numbers = order_numbers
         
         # store order wavelength
         self.w = w_data[[i-1 for i in self.order_numbers]].flatten()
@@ -90,11 +96,30 @@ class Spectrum(object):
         # re-parameterize from log(vbroad) to vbroad
         self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
         # compute metrics associated with best-fit labels
-        self.fit_chisq = np.sum(residuals(self.fit_cannon_labels)**2)
+        # note: I need to use the logvbroad parameterization for chi-squared
+        # since it's calculated useing residuals()
+        self.fit_chisq = np.sum(residuals(result[0])**2)
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
         # compute residuals of best-fit model
         self.model_flux = self.cannon_model(self.fit_cannon_labels)
         self.residuals = self.flux - self.model_flux
+
+    # temporary function to visualize the fit
+    def plot_fit(self):
+        self.fit_single_star()
+        plt.figure(figsize=(15,10))
+        plt.rcParams['font.size']=15
+        plt.subplots_adjust(hspace=0)
+        plt.subplot(211)
+        plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
+        plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+        plt.xlim(self.w[0],self.w[-1])
+        plt.ylabel('normalized flux')
+
+        plt.subplot(212)
+        plt.plot(self.w, self.residuals, 'k-')
+        plt.xlim(self.w[0],self.w[-1])
+        plt.xlabel('wavelength (angsstrom)');plt.ylabel('residuals')
 
 
 
