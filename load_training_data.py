@@ -8,6 +8,10 @@ import pandas as pd
 import numpy as np
 import glob
 
+# function to remove extraneous columns from dataframe
+def trimmed(df):
+    return df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
 # ============ load literature data ==================================================
 
 # define paths to load and store spectrum files
@@ -87,14 +91,15 @@ kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
 kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
 # write names + labels for binaries to .csv file
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
-kraus2016_binaries.to_csv('./data/label_dataframes/kraus2016_binaries_labels.csv')
+trimmed(kraus2016_binaries).to_csv('./data/label_dataframes/kraus2016_binaries_labels.csv')
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # write to .csv file
-cks_stars.to_csv('./data/label_dataframes/training_labels.csv')
+trimmed(cks_stars).to_csv('./data/label_dataframes/training_labels.csv')
 print('training labels saved to .csv file')
+import pdb;pdd.set_trace()
 
 # ============ write training flux, sigma to files  ================================================
 
