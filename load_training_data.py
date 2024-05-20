@@ -85,6 +85,9 @@ hires_slit_width = 800 # 0.8arcsec = 800mas
 kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
 # add column with starnames to match training set table
 kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
+# write names + labels for binaries to .csv file
+kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
+kraus2016_binaries.to_csv('./data/label_dataframes/kraus2016_binaries_labels.csv')
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
