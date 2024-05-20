@@ -14,10 +14,11 @@ def trimmed(df):
 
 # ============ load literature data ==================================================
 
-# define paths to load and store spectrum files
+# define paths to spectrum files + labels
 original_path = './data/cks-spectra/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 df_path = './data/cannon_training_data'
+label_path = './data/label_dataframes/'
 
 # function to load known tables with known binaries
 k16_path = './data/literature_data/Kraus2016/'
@@ -91,15 +92,15 @@ kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
 kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
 # write names + labels for binaries to .csv file
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
-trimmed(kraus2016_binaries).to_csv('./data/label_dataframes/kraus2016_binaries_labels.csv')
+trimmed(kraus2016_binaries).to_csv(label_path+'kraus2016_binaries_labels.csv', index=False)
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # write to .csv file
-trimmed(cks_stars).to_csv('./data/label_dataframes/training_labels.csv')
+trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
-import pdb;pdd.set_trace()
+import pdb;pdb.set_trace()
 
 # ============ write training flux, sigma to files  ================================================
 
