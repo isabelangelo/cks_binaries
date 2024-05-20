@@ -15,7 +15,10 @@ wt_kwargs = {
 'axis':-1 # axis over which to compute the DWT
 }
 
-# function to compute inverse transform of single level
+# clip size to clip 5% each end of order (in pixels)
+# used to generate training set
+order_clip = 200
+
 def flux_waverec(flux, wavelet_wavedec, levels):
 	"""
 	compute reconstructed spectrum from coefficients output 
@@ -45,7 +48,52 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 	flux_waverec = pywt.waverec(coeffs, wavelet_wavedec, **wt_kwargs)
 	return flux_waverec
 
-# plot the difference between the original + inverse transform
+def load_spectrum(filename, filter_wavelets):
+	"""
+	Load flux, sigma of a spectrum from a .fits file.
+	These flux + sigma values can be used during the Cannon
+	training and test steps.
+	Args:
+		filename (str): path to shifted + registered HIRES spectrum
+		filter_wavelets (bool): if True, perform wavelet-based filtering to spectrum
+								if False, return original spectrum
+	"""
+
+	# load data from file
+	file = fits.open(filename)[1].data
+
+	# store flux, sigma
+	flux_norm = file['s']
+	sigma_norm = file['serr']
+	w_order = file['w']
+
+	# remove nans from flux, sigma
+	# note: this needs to happen here so that the Cannon
+	# always returns flux values for all wavelengths
+	finite_idx = ~np.isnan(flux_norm)
+	if np.sum(finite_idx) != len(flux_norm):
+		flux_norm = np.interp(w_order, w_order[finite_idx], flux_norm[finite_idx])
+	sigma_norm = np.nan_to_num(sigma_norm, nan=1)
+
+	# require even number of elements
+	if len(flux_norm) %2 != 0:
+		flux_norm = flux_norm[:-1]
+		sigma_norm = sigma_norm[:-1]
+
+	if filter_wavelets:
+		# compute wavelet transform of flux
+		level_min, level_max = 1,8
+		waverec_levels = np.arange(level_min,level_max+1,1)
+		flux_norm = flux_waverec(flux_norm, 'sym5', waverec_levels)
+		flux_norm += 1 # normalize to 1 for training
+
+	# clip order on each end
+	flux_norm = flux_norm[order_clip:-1*order_clip]
+	sigma_norm = sigma_norm[order_clip:-1*order_clip]
+
+	return flux_norm, sigma_norm
+
+
 def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
 	"""
 	Plot the original spectrum and reconstructed spectrum from coefficients output 
@@ -79,7 +127,7 @@ def plot_flux_waverec_residuals(flux, wavelet_wavedec, object_name):
 	path = './figures/{}_waverec_residuals.png'.format(wavelet_wavedec)
 	#plt.savefig(path, dpi=150)
 
-# plot different orders
+
 def plot_flux_waverec_levels(w, flux, wavelet_wavedec, object_name):
 	"""
 	Plot the reconstructed spectrum from coefficients output 

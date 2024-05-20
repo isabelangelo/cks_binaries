@@ -29,14 +29,10 @@ def load_kraus_table(filename):
     table['KOI'] = table['KOI'].str.replace('-B-C', '')
     return table[['KOI', 'sep_mas', 'sep_err']]
 
-# clip size to clip 5% each end of order (in pixels)
-# used to generate training set
-order_clip = 200
-
 # write clipped wavelength data to reference file
 original_w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
 w_data = fits.open(original_w_filename)[2].data[:, :-1] # require even number of elements
-w_data = w_data[:, order_clip:-1*order_clip] # clip 5% on each side
+w_data = w_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 fits.HDUList([fits.PrimaryHDU(w_data)]).writeto(reference_w_filename, overwrite=True)
 print('clipped reference wavlength saved to {}'.format(reference_w_filename))
@@ -110,10 +106,10 @@ def single_order_training_data(order_idx, filter_wavelets=True):
     # order numbers are not zero-indexed
     order_n = order_idx + 1
 
-    # lists to store data
+    # places to store data
     id_starname_list = []
-    flux_list = []
-    sigma_list = []
+    flux_arr = np.array([])
+    sigma_arr = np.array([])
 
     # get order data for all stars in training set
     for i in range(len(cks_stars)):
@@ -122,45 +118,24 @@ def single_order_training_data(order_idx, filter_wavelets=True):
         row = cks_stars.iloc[i]
         row_id_starname = row.id_starname.replace('K','k')
         row_spectrum_fileroot = str(row.spectrum_fileroot)
-
         filename = shifted_resampled_path + 'order{}/cks-{}_rj{}.fits'.format(
             order_n,row_id_starname, row_spectrum_fileroot)
-        file = fits.open(filename)[1].data
+        id_starname_list.append(row.id_starname) # save star name for column
+
+        # load spectrum from file
+        # and process for Cannon training
+        flux_norm, sigma_norm = dwt.load_spectrum(
+            filename, 
+            filter_wavelets)
+
+        # save to arrays
+        if flux_arr.size==0:
+            flux_arr = flux_norm
+            sigma_arr = sigma_norm
+        else:
+            flux_arr = np.vstack((flux_arr, flux_norm))
+            sigma_arr = np.vstack((sigma_arr, sigma_norm))
         
-        # store flux, sigma
-        flux_norm = file['s']
-        sigma_norm = file['serr']
-        w_order = file['w']
-
-        # remove nans from flux, sigma
-        # note: this needs to happen here so that the Cannon
-        # always returns flux values for all wavelengths
-        finite_idx = ~np.isnan(flux_norm)
-        if np.sum(finite_idx) != len(flux_norm):
-            flux_norm = np.interp(w_order, w_order[finite_idx], flux_norm[finite_idx])
-        sigma_norm = np.nan_to_num(sigma_norm, nan=1)
-
-        # require even number of elements
-        if len(flux_norm) %2 != 0:
-            flux_norm = flux_norm[:-1]
-            sigma_norm = sigma_norm[:-1]
-
-        if filter_wavelets:
-            # compute wavelet transform of flux
-            level_min, level_max = 1,8
-            waverec_levels = np.arange(level_min,level_max+1,1)
-            flux_waverec = dwt.flux_waverec(flux_norm, 'sym5', waverec_levels)
-            flux_waverec += 1 # normalize to 1 for training
-            flux_norm = flux_waverec
-
-        # clip order on each end
-        flux_norm = flux_norm[order_clip:-1*order_clip]
-        sigma_norm = sigma_norm[order_clip:-1*order_clip]
-
-        # save to lists
-        flux_list.append(flux_norm) 
-        sigma_list.append(sigma_norm)
-        id_starname_list.append(row.id_starname)
 
     # store flux, sigma data
     flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
