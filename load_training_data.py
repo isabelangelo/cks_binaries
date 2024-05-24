@@ -17,10 +17,10 @@ def trimmed(df):
 # define paths to spectrum files + labels
 original_path = './data/cks-spectra/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
-df_path = './data/cannon_training_data'
+df_path = './data/cannon_training_data/'
 label_path = './data/label_dataframes/'
 
-# function to load known tables with known binaries
+# load tables with known binaries from Kraus 2016
 k16_path = './data/literature_data/Kraus2016/'
 def load_kraus_table(filename):
     table = pd.read_csv(k16_path+filename, delim_whitespace=True)
@@ -28,6 +28,21 @@ def load_kraus_table(filename):
     table['KOI'] = table['KOI'].str.replace('-A-B', '')
     table['KOI'] = table['KOI'].str.replace('-B-C', '')
     return table[['KOI', 'sep_mas', 'sep_err']]
+# combine companions identified from different methods
+kraus_binaries = pd.concat([
+    load_kraus_table('Kraus2016_Table3.csv'), # NRM
+    load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
+    load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
+# add column to match training set table
+kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
+
+# load table with known binaries from Kolbl 2015
+kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', skiprows=1, 
+                 delimiter=' ', names=['koi','Teff_A', 'pm_A', 'Teff_A_err', 'Teff_B', 
+                 'pm_B', 'Teff_B_err','FB_over_FA', 'pm_FB_over_FA', 'FB_over_FA_err', 
+                 'dRV', 'planetary_data_n', 'planetary_data_status'])
+# add column to match training set table
+kolbl_binaries.insert(0, 'id_starname', ['K'+(i).zfill(5) for i in kolbl_binaries.koi])
 
 # write clipped wavelength data to reference file
 original_w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
@@ -37,7 +52,7 @@ reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 fits.HDUList([fits.PrimaryHDU(w_data)]).writeto(reference_w_filename, overwrite=True)
 print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 
-# ============ clean training set + write labels to file  =========================================
+# ============ clean training set + write labels to file  ===================================
 
 # load table with CKS properties from CKS website
 cks_stars = pd.read_csv(
@@ -74,29 +89,33 @@ for i in range(len(cks_stars)):
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 
-# remove unresolved binaries from Kraus 2016
-# combine companions identified from different methods
-kraus_binaries = pd.concat([
-    load_kraus_table('Kraus2016_Table3.csv'), # NRM
-    load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
-    load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
+# remove unresolved spectral binaries from Kraus 2016
 # query targets where any separation within reported uncertainties
 # falls within hires slit width of 0.8arcsec
 hires_slit_width = 800 # 0.8arcsec = 800mas
 kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
-# add column with starnames to match training set table
-kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
 # write names + labels for binaries to .csv file
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
-trimmed(kraus2016_binaries).to_csv(label_path+'kraus2016_binaries_labels.csv', index=False)
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
+# remove unresolved SB2s from Kolbl 2015
+kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+cks_stars = cks_stars[~cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
+
+# write binaries to file
+kolbl2015_binaries['source'] = ['Kolbl2015']*len(kolbl2015_binaries)
+kraus2016_binaries['source'] = ['Kraus2016']*len(kraus2016_binaries)
+known_binaries = pd.concat((
+    trimmed(kraus2016_binaries),
+    trimmed(kolbl2015_binaries)))
+known_binaries.to_csv(label_path+'known_binary_labels.csv', index=False)
+
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
-import pdb;pdb.set_trace()
 
 # ============ write training flux, sigma to files  ================================================
 
@@ -154,8 +173,8 @@ for order_idx in range(0, 16):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx)
     flux_df_dwt = pd.concat([flux_df_dwt, flux_df_n])
     sigma_df_dwt = pd.concat([sigma_df_dwt, sigma_df_n])
-flux_df_dwt.to_csv('{}/training_flux_dwt.csv'.format(df_path), index=False)
-sigma_df_dwt.to_csv('{}/training_sigma_dwt.csv'.format(df_path), index=False)
+flux_df_dwt.to_csv('{}training_flux_dwt.csv'.format(df_path), index=False)
+sigma_df_dwt.to_csv('{}training_sigma_dwt.csv'.format(df_path), index=False)
 print('wavelet-filtered training flux and sigma saved to .csv files')
 
 # write original training set flux, sigma to files
