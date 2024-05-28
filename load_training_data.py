@@ -113,6 +113,17 @@ known_binaries = pd.concat((
     trimmed(kolbl2015_binaries)))
 known_binaries.to_csv(label_path+'known_binary_labels.csv', index=False)
 
+# remove stars with shifting errors
+# note: KOI-2864 didn't have a shifting error but there was some RV pipeline 
+# processing error, so we remove it here as well.
+shifting_err_starnames = np.array(['K00003', 'K00020', 'K00176', 'K00486', 
+    'K00551', 'K00658', 'K01054', 'K01230', 'K01299', 'K01431', 'K01576', 
+    'K01754','K01886', 'K01888', 'K02053', 'K02110', 'K02228', 'K02260',
+    'K02312', 'K02409', 'K02729', 'K02748', 'K02884', 'K03158','K03168', 
+    'K03244', 'K03315', 'K03780', 'K04021', 'K04230','K04374', 'K02864']) 
+cks_stars = cks_stars[~cks_stars.id_starname.isin(shifting_err_starnames)]
+print(len(cks_stars), ' remain after removing spectra with shifting/processing errors')
+
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
@@ -157,8 +168,8 @@ def single_order_training_data(order_idx, filter_wavelets=True):
         
 
     # store flux, sigma data
-    flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
-    sigma_df_n = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
+    flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_arr)))
+    sigma_df_n = pd.DataFrame(dict(zip(id_starname_list, sigma_arr)))
 
     # store order number
     flux_df_n.insert(0, 'order_number', order_n)
