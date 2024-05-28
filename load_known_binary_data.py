@@ -10,7 +10,7 @@ import dwt
 df_path = './data/spectrum_dataframes/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 # path to names + labels of Kraus 2016 binaries
-kraus2016_binaries = pd.read_csv('./data/label_dataframes/kraus2016_binaries_labels.csv',
+kraus2016_binaries = pd.read_csv('./data/label_dataframes/known_binary_labels.csv',
                                 dtype={'spectrum_fileroot': str})
 # filter fluxes with wavelet decomposition
 filter_wavelets=True
@@ -61,8 +61,8 @@ for order_n in order_numbers:
 	sigma_df = pd.concat([sigma_df, sigma_df_n])
 
 # write flux, sigma to .csv files
-flux_path = '{}kraus2016_flux_dwt.csv'.format(df_path)
-sigma_path = '{}kraus2016_sigma_dwt.csv'.format(df_path)
+flux_path = '{}known_binary_flux_dwt.csv'.format(df_path)
+sigma_path = '{}known_binary_sigma_dwt.csv'.format(df_path)
 
 flux_df.to_csv(flux_path, index=False)
 sigma_df.to_csv(sigma_path, index=False)
