@@ -67,8 +67,9 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     # Create the model that will run in parallel using all available cores.
     model = tc.CannonModel(training_set, normalized_flux, normalized_ivar,
                            vectorizer=vectorizer)
-    # train model
-    model_path = './data/cannon_models/'
+    # train and store model
+    model_path = './data/cannon_models/rchip_{}'.format(model_suffix)
+    os.mkdir(model_path)
     model_filename = model_path + model_fileroot
     model.train()
     print('finished training cannon model')

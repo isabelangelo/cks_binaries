@@ -41,7 +41,8 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
 
 	# compute model to validate based on order number
-	model_path = './data/cannon_models/rchip_{}.model'.format(model_suffix)
+	model_dir = './data/cannon_models/rchip_{}'.format(model_suffix)
+	model_path = model_dir+'/rchip_{}.model'.format(model_suffix)
 	model_to_validate = tc.CannonModel.read(model_path)
 
 	def compute_cannon_labels():
@@ -109,7 +110,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
-		cannon_label_path = './data/cannon_models/rchip_{}_cannon_labels.csv'.format(model_suffix)
+		cannon_label_path = model_dir+'rchip_{}_cannon_labels.csv'.format(model_suffix)
 		print('saving training set cannon output labels to {}'.format(cannon_label_path))
 		cannon_label_df.to_csv(cannon_label_path)
 		return cannon_label_df
