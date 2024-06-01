@@ -45,8 +45,8 @@ kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', skip
 kolbl_binaries.insert(0, 'id_starname', ['K'+(i).zfill(5) for i in kolbl_binaries.koi])
 
 # write clipped wavelength data to reference file
-original_w_filename = './data/cks-spectra/cks-k00002_rj122.92.fits' # can be any r chip file
-w_data = fits.open(original_w_filename)[2].data[:, :-1] # require even number of elements
+original_w_filename = './data/cks-spectra/cks-k00001_rj122.742.fits' # can be any r chip file
+w_data = read_hires_fits(original_w_filename).w[:,:-1] # require even number of elements
 w_data = w_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 fits.HDUList([fits.PrimaryHDU(w_data)]).writeto(reference_w_filename, overwrite=True)
@@ -113,15 +113,9 @@ known_binaries = pd.concat((
     trimmed(kolbl2015_binaries)))
 known_binaries.to_csv(label_path+'known_binary_labels.csv', index=False)
 
-# remove stars with shifting errors
-# note: KOI-2864 didn't have a shifting error but there was some RV pipeline 
-# processing error, so we remove it here as well.
-shifting_err_starnames = np.array(['K00003', 'K00020', 'K00176', 'K00486', 
-    'K00551', 'K00658', 'K01054', 'K01230', 'K01299', 'K01431', 'K01576', 
-    'K01754','K01886', 'K01888', 'K02053', 'K02110', 'K02228', 'K02260',
-    'K02312', 'K02409', 'K02729', 'K02748', 'K02884', 'K03158','K03168', 
-    'K03244', 'K03315', 'K03780', 'K04021', 'K04230','K04374', 'K02864']) 
-cks_stars = cks_stars[~cks_stars.id_starname.isin(shifting_err_starnames)]
+# remove stars with processing errors
+processing_err_starnames = np.array(['K02864']) 
+cks_stars = cks_stars[~cks_stars.id_starname.isin(processing_err_starnames)]
 print(len(cks_stars), ' remain after removing spectra with shifting/processing errors')
 
 # write to .csv file
