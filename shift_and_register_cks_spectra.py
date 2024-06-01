@@ -2,118 +2,66 @@
 This code uses Specmatch-Emp to shift all the raw CKS r chip spectra 
 and rescale them onto the original HIRES wavelength scale. 
 """
-from specmatchemp import SHIFT_REFERENCES
-from specmatchemp.library import read_hdf as read_sm_lib
-from specmatchemp.shift import shift, bootstrap_shift
-from specmatchemp.spectrum import read_fits, read_hires_fits
-from specmatchemp.spectrum import Spectrum as SMSpectrum
+from specmatchemp.spectrum import read_hires_fits
 from specmatchemp.specmatch import SpecMatch
-import numpy as np
+import specmatchemp.library
 import glob
 import os
 
-# load specmatch library
-lib = read_sm_lib()
+# paths to store shifted spectra
+shifted_resampled_path = './data/cks-spectra_shifted_resampled_r'
+kepler1656_path = './data/kepler1656_spectra'
 
-# load specmatch reference spectra for shifting
-ref_specs = [read_fits(os.path.join('/Users/isabelangelo/.specmatchemp/shifted_spectra/',
-             r[0] + '_adj.fits')) for r in SHIFT_REFERENCES]
+# load specmatch library for reference spectra
+lib = specmatchemp.library.read_hdf()
+
+def shift_and_save_orders(path, filename):
+    
+    # load spectrum + create SpecMatch object
+    KOI_spectrum = read_hires_fits(filename)
+    sm_KOI = SpecMatch(KOI_spectrum, lib)
+    w_to_resample_to = sm_KOI.target_unshifted.w
+    
+    # shift spectrum
+    shifted_spectrum = sm_KOI.shift()
+    
+    rescaled_orders=[]
+    # rescale to each order and save
+    for order_idx in range(w_to_resample_to.shape[0]):
+        # resample order to original wavelength scale
+        w_order = w_to_resample_to[order_idx]
+        rescaled_order = shifted_spectrum.rescale(w_order)
+        # write to file
+        shifted_resampled_filename = '{}/order{}/{}.fits'.format(
+            path,
+            str(order_idx+1),
+            filename.split('/')[-1].replace('.fits', ''))
+        rescaled_order.to_fits(shifted_resampled_filename)
 
 # create directories for the different orders
 for order_idx in range(16):
     order_n = order_idx+1 # order numbers are not zero-indexed
-    order_path = './data/cks-spectra_shifted_resampled_r/order{}'.format(order_n)
-    print(order_path)
+    order_path = '{}/order{}'.format(shifted_resampled_path, order_n)
+    order_path_kepler1656 = '{}/order{}'.format(kepler1656_path, order_n)
     if not os.path.exists(order_path):
         os.mkdir(order_path)
+    if not os.path.exists(order_path_kepler1656):
+        os.mkdir(order_path_kepler1656)
     else:
         pass
 
 # iterate over CKS spectra
 print('shifting + registering training set spectra')
 spectrum_filenames = glob.glob('./data/cks-spectra/*rj*.fits')
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_r'
-
-
 for filename in spectrum_filenames:
+    shift_and_save_orders(shifted_resampled_path, filename)
 
-    # load target to shift
-    target = read_hires_fits(filename)
-
-    # extract order for bootstrap shift
-    bootstrap_order = target.cut(5120, 5200)
-
-    # shift single order to determine best reference
-    bootstrap_shift_data = {}
-    shifted_bs_order = bootstrap_shift(bootstrap_order, ref_specs, store=bootstrap_shift_data)
-    best_ref_spec = ref_specs[bootstrap_shift_data['shift_reference']]
-
-    # shift + register all orders
-    for order_idx in range(target.w.shape[0]):
-        # order numbers are not zero-indexed
-        order_n = order_idx+1 
-        order = SMSpectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
-        shifted_order = shift(order, best_ref_spec)
-
-        # extend spectrum to correct size for rescaling
-        w_to_resample_to = target.w[order_idx]
-        extended_w = np.linspace(shifted_order.w[0], shifted_order.w[-1], len(w_to_resample_to))
-        extended_order =  shifted_order.extend(extended_w)
-
-        # resample spectrum onto library wavelength
-        resampled_order = extended_order.rescale(w_to_resample_to)
-        
-        # write to file
-        fileroot = filename.split('/')[-1].replace('.fits', '')
-        shifted_resampled_filename = '{}/order{}/{}.fits'.format(
-        	shifted_resampled_path,
-        	str(order_n),
-        	fileroot)
-        resampled_order.to_fits(shifted_resampled_filename)
-    print('saved resampled spectrum saved to {}/'.format(shifted_resampled_path))
-print('saved all training set spectra to files')
-
+# shift kepler-1656 spectra for wavelet diagnostics
 print('shifting and registering Kepler-1656 spectra for diagnostics')
-# also shift ang register Kepler-1656 spectra for DWT diagnostics
-kepler1656_path = './data/kepler1656_spectra'
 kepler1656_filenames = glob.glob(kepler1656_path + '/*rj*.fits')
 kepler1656_raw_spectra_filenames = [f for f in kepler1656_filenames if 'order' not in f]
 for filename in kepler1656_raw_spectra_filenames:
-    # load target to shift
-    import pdb
-    target = read_hires_fits(filename)
+    shift_and_save_orders(kepler1656_path, filename)
 
-    # extract order for bootstrap shift
-    bootstrap_order = target.cut(5120, 5200)
-
-    # shift single order to determine best reference
-    bootstrap_shift_data = {}
-    shifted_bs_order = bootstrap_shift(bootstrap_order, ref_specs, store=bootstrap_shift_data)
-    best_ref_spec = ref_specs[bootstrap_shift_data['shift_reference']]
-
-    # shift + register all orders
-    for order_idx in range(target.w.shape[0]):
-        # order numbers are not zero-indexed
-        order_n = order_idx+1 
-
-        order = SMSpectrum(target.w[order_idx], target.s[order_idx], target.serr[order_idx], target.mask[order_idx])
-        shifted_order = shift(order, best_ref_spec)
-
-        # extend spectrum to correct size for rescaling
-        w_to_resample_to = target.w[order_idx][1:-1]
-        extended_w = np.linspace(shifted_order.w[0], shifted_order.w[-1], len(w_to_resample_to))
-        extended_order =  shifted_order.extend(extended_w)
-
-        # resample spectrum onto library wavelength
-        resampled_order = extended_order.rescale(w_to_resample_to)
-
-        # write to file
-        fileroot = filename.split('/')[-1].replace('.fits', '')
-        shifted_resampled_filename = '{}/{}_order{}.fits'.format(
-        	kepler1656_path,
-        	fileroot,
-        	str(order_n))
-        resampled_order.to_fits(shifted_resampled_filename)
-    print('saved resampled spectrum saved to {}/'.format(shifted_resampled_filename))
 
 
