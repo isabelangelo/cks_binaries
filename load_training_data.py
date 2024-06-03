@@ -162,8 +162,8 @@ def single_order_training_data(order_idx, filter_wavelets=True):
         
 
     # store flux, sigma data
-    flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_arr)))
-    sigma_df_n = pd.DataFrame(dict(zip(id_starname_list, sigma_arr)))
+    flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_list)))
+    sigma_df_n = pd.DataFrame(dict(zip(id_starname_list, sigma_list)))
 
     # store order number
     flux_df_n.insert(0, 'order_number', order_n)

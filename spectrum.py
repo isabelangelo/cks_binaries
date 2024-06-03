@@ -41,11 +41,11 @@ class Spectrum(object):
             self.order_numbers = order_numbers
         
         # store order wavelength
-        self.wav = w_data[[i-1 for i in self.order_numbers]].flatten()
+        self.w = w_data[[i-1 for i in self.order_numbers]].flatten()
         
         # compute wavelength mask
-        sodium_mask = np.where((self.wav>sodium_wmin) & (self.wav<sodium_wmax))[0]
-        telluric_mask = np.where((self.wav>telluric_wmin) & (self.wav<telluric_wmax))[0]
+        sodium_mask = np.where((self.w>sodium_wmin) & (self.w<sodium_wmax))[0]
+        telluric_mask = np.where((self.w>telluric_wmin) & (self.w<telluric_wmax))[0]
         self.mask = np.array(list(sodium_mask) + list(telluric_mask))
         
         # store cannon model information
@@ -118,25 +118,25 @@ class Spectrum(object):
         log_chisq = np.log10(self.fit_chisq)
 
         fig, axes = plt.subplots(3,1, figsize=(17,15))
-        axes[0].errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
+        axes[0].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
                          ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[0].plot(self.wav, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[0].plot(self.wav, self.residuals*2, 'k-', lw=1)
+        axes[0].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
+        axes[0].plot(self.w, self.residuals*2, 'k-', lw=1)
         axes[0].text(5050,1.2, r'log $\chi^2$ = {}'.format(log_chisq.round(2)))
         axes[0].axvspan(min1, max1, color='cyan', alpha=0.1)
         axes[0].axvspan(min2, max2, color='r', alpha=0.1)
-        axes[0].set_xlim(self.wav[0],self.wav[-1])
+        axes[0].set_xlim(self.w[0],self.w[-1])
 
-        axes[1].errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
+        axes[1].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
                          ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[1].plot(self.wav, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[1].plot(self.wav, self.residuals*2, 'k-', lw=1)
+        axes[1].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
+        axes[1].plot(self.w, self.residuals*2, 'k-', lw=1)
         axes[1].set_xlim(min1, max1)
 
-        axes[2].errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
+        axes[2].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
                          ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[2].plot(self.wav, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[2].plot(self.wav, self.residuals*2, 'k-', lw=1)
+        axes[2].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
+        axes[2].plot(self.w, self.residuals*2, 'k-', lw=1)
         axes[2].set_xlim(min2, max2)
 
         # plot telluric mask
