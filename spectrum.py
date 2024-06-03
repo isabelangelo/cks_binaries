@@ -105,46 +105,22 @@ class Spectrum(object):
         self.residuals = self.flux - self.model_flux
 
     # temporary function to visualize the fit
-    def plot_fit(self, order_n1=None, order_n2=None):
-
-        if order_n1 is None:
-            order_n1 = 4
-        if order_n2 is None:
-            order_n2 = 7
-
+    def plot_fit(self):
         self.fit_single_star()
-        min1, max1 = w_data[order_n1-1].min(),w_data[order_n1-1].max()
-        min2, max2 = w_data[order_n2-1].min(),w_data[order_n2-1].max()
-        log_chisq = np.log10(self.fit_chisq)
+        plt.figure(figsize=(15,10))
+        plt.rcParams['font.size']=15
+        plt.subplots_adjust(hspace=0)
+        plt.subplot(211)
+        plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
+        plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+        plt.xlim(self.w[0],self.w[-1])
+        plt.ylabel('normalized flux')
 
-        fig, axes = plt.subplots(3,1, figsize=(17,15))
-        axes[0].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
-                         ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[0].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[0].plot(self.w, self.residuals*2, 'k-', lw=1)
-        axes[0].text(5050,1.2, r'log $\chi^2$ = {}'.format(log_chisq.round(2)))
-        axes[0].axvspan(min1, max1, color='cyan', alpha=0.1)
-        axes[0].axvspan(min2, max2, color='r', alpha=0.1)
-        axes[0].set_xlim(self.w[0],self.w[-1])
+        plt.subplot(212)
+        plt.plot(self.w, self.residuals, 'k-')
+        plt.xlim(self.w[0],self.w[-1])
+        plt.xlabel('wavelength (angsstrom)');plt.ylabel('residuals')
 
-        axes[1].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
-                         ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[1].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[1].plot(self.w, self.residuals*2, 'k-', lw=1)
-        axes[1].set_xlim(min1, max1)
-
-        axes[2].errorbar(self.w, self.flux, yerr=self.sigma, color='k', 
-                         ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        axes[2].plot(self.w, self.model_flux, '-', alpha=0.8, lw=1.5, color='#2D36FD')
-        axes[2].plot(self.w, self.residuals*2, 'k-', lw=1)
-        axes[2].set_xlim(min2, max2)
-
-        # plot telluric mask
-        mask_kwgs={'color':'lightgrey','alpha':0.5}
-        axes[0].axvspan(telluric_wmin, telluric_wmax, **mask_kwgs)
-        axes[1].axvspan(telluric_wmin, telluric_wmax, **mask_kwgs)
-        axes[2].axvspan(telluric_wmin, telluric_wmax, **mask_kwgs)
-        plt.show()
 
 
 
