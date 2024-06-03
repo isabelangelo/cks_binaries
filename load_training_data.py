@@ -113,11 +113,6 @@ known_binaries = pd.concat((
     trimmed(kolbl2015_binaries)))
 known_binaries.to_csv(label_path+'known_binary_labels.csv', index=False)
 
-# remove stars with processing errors
-processing_err_starnames = np.array(['K02864']) 
-cks_stars = cks_stars[~cks_stars.id_starname.isin(processing_err_starnames)]
-print(len(cks_stars), ' remain after removing spectra with shifting/processing errors')
-
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
