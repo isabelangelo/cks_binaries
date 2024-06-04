@@ -20,6 +20,7 @@ shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 df_path = './data/cannon_training_data'
 label_path = './data/label_dataframes/'
 
+# load binary data from Kraus 2016
 # function to load known tables with known binaries
 k16_path = './data/literature_data/Kraus2016/'
 def load_kraus_table(filename):
@@ -28,6 +29,29 @@ def load_kraus_table(filename):
     table['KOI'] = table['KOI'].str.replace('-A-B', '')
     table['KOI'] = table['KOI'].str.replace('-B-C', '')
     return table[['KOI', 'sep_mas', 'sep_err']]
+# combine companions identified from different methods
+kraus_binaries = pd.concat([
+    load_kraus_table('Kraus2016_Table3.csv'), # NRM
+    load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
+    load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
+# query targets where any separation within reported uncertainties
+# falls within hires slit width of 0.8arcsec
+hires_slit_width = 800 # 0.8arcsec = 800mas
+kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
+# add column with starnames to match training set table
+kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
+
+# load binary data from Kolbl 2016
+# load + reformat discovered binares in Table 9
+colnames = ['KOI','Teff_A', 'pm_Teff_A','Teff_A_err','Teff_B', 'pm_Teff_B','Teff_B_err','FB_over_FA',
+'pm_FB_over_FA','FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
+colnames_to_keep = ['KOI','Teff_A','Teff_A_err','Teff_B','Teff_B_err', 'FB_over_FA',
+'FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
+kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
+    delimiter=' ', skiprows=1, names=colnames)[colnames_to_keep]
+id_starnames = ['K0'+str(value).zfill(4) for value in kolbl_binaries.KOI]
+# add column with starnames to match training set table
+kolbl_binaries['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
 original_w_filename = './data/cks-spectra/cks-k00001_rj122.742.fits' # can be any r chip file
@@ -77,18 +101,6 @@ cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 
 # remove unresolved binaries from Kraus 2016
-# combine companions identified from different methods
-kraus_binaries = pd.concat([
-    load_kraus_table('Kraus2016_Table3.csv'), # NRM
-    load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
-    load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
-# query targets where any separation within reported uncertainties
-# falls within hires slit width of 0.8arcsec
-hires_slit_width = 800 # 0.8arcsec = 800mas
-kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
-# add column with starnames to match training set table
-kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
-# write names + labels for binaries to .csv file
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 trimmed(kraus2016_binaries).to_csv(label_path+'kraus2016_binaries_labels.csv', index=False)
 # update training labels
@@ -96,17 +108,6 @@ cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # remove unresolved binaries from Kolbl 2015
-# load + reformat discovered binares in Table 9
-colnames = ['KOI','Teff_A', 'pm_Teff_A','Teff_A_err','Teff_B', 'pm_Teff_B','Teff_B_err','FB_over_FA',
-'pm_FB_over_FA','FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
-colnames_to_keep = ['KOI','Teff_A','Teff_A_err','Teff_B','Teff_B_err', 'FB_over_FA',
-'FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
-kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
-    delimiter=' ', skiprows=1, names=colnames)[colnames_to_keep]
-id_starnames = ['K0'+str(value).zfill(4) for value in kolbl_binaries.KOI]
-# add column with starnames to match training set table
-kolbl_binaries['id_starname'] = id_starnames
-# write names + labels for binaries to .csv file
 kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
 trimmed(kolbl2015_binaries).to_csv(label_path+'kolbl2015_binaries_labels.csv', index=False)
 # update training labels

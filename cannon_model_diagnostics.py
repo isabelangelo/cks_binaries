@@ -20,8 +20,6 @@ if os.path.exists(order_data_path)==False:
 	# write the DataFrame to a CSV file
 	empty_order_df.to_csv(order_data_path, index=False)
 
-# if not, should I initialize some sort of dataframe? I'll check the code below.
-
 def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
