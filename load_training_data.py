@@ -114,6 +114,10 @@ trimmed(kolbl2015_binaries).to_csv(label_path+'kolbl2015_binaries_labels.csv', i
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 
+# remove KOI-2864, which seems to have some RV pipeline processing errors
+cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
+print(len(cks_stars), ' after removing stars with processing errors')
+
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
