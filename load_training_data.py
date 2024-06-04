@@ -102,14 +102,12 @@ print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 
 # remove unresolved binaries from Kraus 2016
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
-trimmed(kraus2016_binaries).to_csv(label_path+'kraus2016_binaries_labels.csv', index=False)
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # remove unresolved binaries from Kolbl 2015
 kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
-trimmed(kolbl2015_binaries).to_csv(label_path+'kolbl2015_binaries_labels.csv', index=False)
 # update training labels
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
@@ -119,8 +117,15 @@ cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
 
 # write to .csv file
-trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
+#trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
+
+# write binaries to file, perserving the source information
+kraus2016_binaries['source']='Kraus2016'
+kolbl2015_binaries['source']='Kolbl2015'
+known_binaries = pd.concat((kraus2016_binaries, kolbl2015_binaries))
+trimmed(known_binaries).to_csv(label_path+'known_binary_labels.csv', index=False)
+print('saved binary labels to .csv')
 
 # ============ write training flux, sigma to files  ================================================
 

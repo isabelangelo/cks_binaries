@@ -9,9 +9,11 @@ import dwt
 # define paths to spectrum files + labels
 df_path = './data/spectrum_dataframes/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
+
 # path to names + labels of Kraus 2016 binaries
-kraus2016_binaries = pd.read_csv('./data/label_dataframes/known_binary_labels.csv',
+known_binaries = pd.read_csv('./data/label_dataframes/known_binary_labels.csv',
                                 dtype={'spectrum_fileroot': str})
+
 # filter fluxes with wavelet decomposition
 filter_wavelets=True
 # store orders in relevant Cannon model
