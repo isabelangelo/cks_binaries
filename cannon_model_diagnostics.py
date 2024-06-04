@@ -110,7 +110,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
-		cannon_label_path = model_dir+'rchip_{}_cannon_labels.csv'.format(model_suffix)
+		cannon_label_path = model_dir+'/cannon_labels.csv'.format(model_suffix)
 		print('saving training set cannon output labels to {}'.format(cannon_label_path))
 		cannon_label_df.to_csv(cannon_label_path)
 		return cannon_label_df

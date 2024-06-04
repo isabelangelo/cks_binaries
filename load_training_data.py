@@ -67,8 +67,10 @@ for i in range(len(cks_stars)):
         row_id_starname, row_spectrum_fileroot)
     target = read_hires_fits(filename)
 
-    # compute average pixel error, remove if >3%
-    snr = np.nanmean(target.s)/np.nanmean(target.serr)
+    # compute average pixel error, remove if snr<20
+    # note: I needed to use the photon noise instead of 
+    # target.serr, since those errors are unreasonably small
+    snr = np.nanmean(target.s)/np.nanmean(np.sqrt(target.s))
     if snr < 20:
         low_sigma_idx_to_remove.append(i)
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
@@ -93,10 +95,27 @@ trimmed(kraus2016_binaries).to_csv(label_path+'kraus2016_binaries_labels.csv', i
 cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
+# remove unresolved binaries from Kolbl 2015
+# load + reformat discovered binares in Table 9
+colnames = ['KOI','Teff_A', 'pm_Teff_A','Teff_A_err','Teff_B', 'pm_Teff_B','Teff_B_err','FB_over_FA',
+'pm_FB_over_FA','FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
+colnames_to_keep = ['KOI','Teff_A','Teff_A_err','Teff_B','Teff_B_err', 'FB_over_FA',
+'FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
+kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
+    delimiter=' ', skiprows=1, names=colnames)[colnames_to_keep]
+id_starnames = ['K0'+str(value).zfill(4) for value in kolbl_binaries.KOI]
+# add column with starnames to match training set table
+kolbl_binaries['id_starname'] = id_starnames
+# write names + labels for binaries to .csv file
+kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+trimmed(kolbl2015_binaries).to_csv(label_path+'kolbl2015_binaries_labels.csv', index=False)
+# update training labels
+cks_stars = cks_stars[~cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
+
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
-import pdb;pdb.set_trace()
 
 # ============ write training flux, sigma to files  ================================================
 
@@ -108,8 +127,8 @@ def single_order_training_data(order_idx, filter_wavelets=True):
 
     # places to store data
     id_starname_list = []
-    flux_arr = np.array([])
-    sigma_arr = np.array([])
+    flux_list = []
+    sigma_list = []
 
     # get order data for all stars in training set
     for i in range(len(cks_stars)):
@@ -128,14 +147,9 @@ def single_order_training_data(order_idx, filter_wavelets=True):
             filename, 
             filter_wavelets)
 
-        # save to arrays
-        if flux_arr.size==0:
-            flux_arr = flux_norm
-            sigma_arr = sigma_norm
-        else:
-            flux_arr = np.vstack((flux_arr, flux_norm))
-            sigma_arr = np.vstack((sigma_arr, sigma_norm))
-        
+        # save to lists
+        flux_list.append(flux_norm)
+        sigma_list.append(sigma_norm)
 
     # store flux, sigma data
     flux_df_n = pd.DataFrame(dict(zip(id_starname_list, flux_list)))

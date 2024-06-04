@@ -68,7 +68,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     model = tc.CannonModel(training_set, normalized_flux, normalized_ivar,
                            vectorizer=vectorizer)
     # train and store model
-    model_path = './data/cannon_models/rchip_{}'.format(model_suffix)
+    model_path = './data/cannon_models/rchip_{}/'.format(model_suffix)
     os.mkdir(model_path)
     model_filename = model_path + model_fileroot
     model.train()
@@ -82,7 +82,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     plot_one_to_one_leave1out(
         order_numbers, 
         training_set.to_pandas(), 
-        model_path + model_fileroot + '_one_to_one.png',
+        model_path + 'one_to_one.png',
         model_suffix)
 
 ####### train cannon models with wavelet filters #######

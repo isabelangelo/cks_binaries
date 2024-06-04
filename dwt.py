@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import pywt
 import specmatchemp.library
 
-# load wavelength array
-lib = specmatchemp.library.read_hdf()
-w = lib.wav
+# # load wavelength array
+# lib = specmatchemp.library.read_hdf()
+# w = lib.wav
 
 # define tranform function inputs
 wt_kwargs = {
@@ -84,7 +84,9 @@ def load_spectrum(filename, filter_wavelets):
 		# compute wavelet transform of flux
 		level_min, level_max = 1,8
 		waverec_levels = np.arange(level_min,level_max+1,1)
-		flux_norm = flux_waverec(flux_norm, 'sym5', waverec_levels)
+		flux_rec = flux_waverec(flux_norm, 'sym5', waverec_levels)
+		flux_rec += 1 # normalize to 1 for training
+		flux_norm = flux_rec
 
 	# clip order on each end
 	flux_norm = flux_norm[order_clip:-1*order_clip]
