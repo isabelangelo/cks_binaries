@@ -10,7 +10,7 @@ import dwt
 df_path = './data/spectrum_dataframes/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 
-# path to names + labels of Kraus 2016 binaries
+# path to names + labels of Kraus 2016 + Kolbl 2015 binaries
 known_binaries = pd.read_csv('./data/label_dataframes/known_binary_labels.csv',
                                 dtype={'spectrum_fileroot': str})
 
@@ -29,9 +29,9 @@ for order_n in order_numbers:
 	sigma_arr = np.array([])
 
 	# get order data for all stars in training set
-	for i in range(len(kraus2016_binaries)):
+	for i in range(len(known_binaries)):
 		# load file data
-		row = kraus2016_binaries.iloc[i]
+		row = known_binaries.iloc[i]
 		row_id_starname = row.id_starname.replace('K','k')
 		row_spectrum_fileroot = str(row.spectrum_fileroot)
 		filename = shifted_resampled_path + 'order{}/cks-{}_rj{}.fits'.format(
