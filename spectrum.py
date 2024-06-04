@@ -105,7 +105,7 @@ class Spectrum(object):
         self.residuals = self.flux - self.model_flux
 
     # temporary function to visualize the fit
-    def plot_fit(self):
+    def plot_fit(self, zoom_order=15):
         self.fit_single_star()
         plt.figure(figsize=(15,10))
         plt.rcParams['font.size']=15
@@ -113,12 +113,15 @@ class Spectrum(object):
         plt.subplot(211)
         plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
         plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+        plt.plot(self.w, self.residuals, 'k-')
         plt.xlim(self.w[0],self.w[-1])
         plt.ylabel('normalized flux')
 
         plt.subplot(212)
+        plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
+        plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
         plt.plot(self.w, self.residuals, 'k-')
-        plt.xlim(self.w[0],self.w[-1])
+        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angsstrom)');plt.ylabel('residuals')
 
 
