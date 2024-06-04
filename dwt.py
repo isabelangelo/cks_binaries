@@ -85,7 +85,7 @@ def load_spectrum(filename, filter_wavelets):
 		level_min, level_max = 1,8
 		waverec_levels = np.arange(level_min,level_max+1,1)
 		flux_rec = flux_waverec(flux_norm, 'sym5', waverec_levels)
-		flux_rec += 1 # normalize to 1 for training
+		#flux_rec += 1 # normalize to 1 for training
 		flux_norm = flux_rec
 
 	# clip order on each end

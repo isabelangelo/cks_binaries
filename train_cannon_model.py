@@ -99,7 +99,7 @@ no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
 train_cannon_model(no_sodium_list, 'orders_11-12_omitted_dwt', save_training_data=True)
 
 ###### train cannon models with original spectra #######
-# all 16 individual orders
+all 16 individual orders
 for order_n in range(1, 17):
     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
