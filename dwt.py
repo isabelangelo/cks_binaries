@@ -19,7 +19,7 @@ wt_kwargs = {
 # used to generate training set
 order_clip = 200
 
-def flux_waverec(flux, wavelet_wavedec, levels):
+def flux_waverec(flux, wavelet_wavedec, coeff_indices_to_keep):
 	"""
 	compute reconstructed spectrum from coefficients output 
 	from the spectrum's wavelet decomposition. 
@@ -28,10 +28,14 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 		flux (np.array): normalized flux for decomposition (must have even # of elements)
 		wavelet_wavedec (str): name of mother wavelet in decomposition/reconstruction 
 								('sym2', 'haar', etc.)
-		levels (list): list of wavelet decomposition levels to return (e.g., [1,2,3])
-						note that the first possible level is 0, and the last is set by
-						pywt..dwt_max_level()
-
+		coeff_indices_to_keep (list): list of indexes (e.g., [1,2,3]) corresponding to 
+						coefficient arrays to preserve in the wavelet recombination. 
+						For indices not in this list,the coefficient arrays will be set to 
+						zero before the wavelet recombination.
+						NOTE: the coefficient list is [cAn, cDn, cDn-1, …, cD2, cD1] where
+						n is the number of levels, so index 0 corresponds to the approximation
+						coefficients, index 1 corresponds to the highest decomposition level, 
+						and index -1 corresponds to the lowest decomposition level.
 	Returns:
 		flux_waverec (np.array): normalized reconstructed flux, including only decomposition
 								levels specified by 'levels'
@@ -40,10 +44,9 @@ def flux_waverec(flux, wavelet_wavedec, levels):
 	max_level = pywt.dwt_max_level(len(flux), wavelet_wavedec)
 	coeffs = pywt.wavedec(flux, wavelet_wavedec, level = max_level, **wt_kwargs)
 	# set coefficients to zero for all other levels
-	all_levels = range(0, max_level+1) # iterate over all levels, including last
-	for level in all_levels:
-		if level not in levels:
-			coeffs[level] = np.zeros_like(coeffs[level])
+	for idx in range(0, max_level+1): # iterate over all levels, including last
+		if idx not in coeff_indices_to_keep:
+			coeffs[idx] = np.zeros_like(coeffs[idx])
 	# wavelet reconstruction
 	flux_waverec = pywt.waverec(coeffs, wavelet_wavedec, **wt_kwargs)
 	return flux_waverec
@@ -82,9 +85,9 @@ def load_spectrum(filename, filter_wavelets):
 
 	if filter_wavelets:
 		# compute wavelet transform of flux
-		level_min, level_max = 1,8
-		waverec_levels = np.arange(level_min,level_max+1,1)
-		flux_rec = flux_waverec(flux_norm, 'sym5', waverec_levels)
+		idx_min, idx_max = 1,8
+		waverec_idx = np.arange(level_min,level_max+1,1)
+		flux_rec = flux_waverec(flux_norm, 'sym5', waverec_idx)
 		#flux_rec += 1 # normalize to 1 for training
 		flux_norm = flux_rec
 
