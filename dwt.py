@@ -32,10 +32,10 @@ def flux_waverec(flux, wavelet_wavedec, coeff_indices_to_keep):
 						coefficient arrays to preserve in the wavelet recombination. 
 						For indices not in this list,the coefficient arrays will be set to 
 						zero before the wavelet recombination.
-						NOTE: the coefficient list is [cAn, cDn, cDn-1, …, cD2, cD1] where
-						n is the number of levels, so index 0 corresponds to the approximation
-						coefficients, index 1 corresponds to the highest decomposition level, 
-						and index -1 corresponds to the lowest decomposition level.
+						NOTE: the coefficient list is arranged as [cAn, cDn, cDn-1, …, cD2, cD1] 
+						where n is the number of levels, so index 0 corresponds to the 
+						approximation coefficients, index 1 corresponds to the highest 
+						decomposition level,  and index -1 corresponds to the lowest level.
 	Returns:
 		flux_waverec (np.array): normalized reconstructed flux, including only decomposition
 								levels specified by 'levels'
@@ -85,9 +85,9 @@ def load_spectrum(filename, filter_wavelets):
 
 	if filter_wavelets:
 		# compute wavelet transform of flux
-		idx_min, idx_max = 1,8
-		waverec_idx = np.arange(level_min,level_max+1,1)
-		flux_rec = flux_waverec(flux_norm, 'sym5', waverec_idx)
+		idx_min, idx_max = 1,8 # coefficient indices to preserve in transform
+		coeff_idx = np.arange(level_min,level_max+1,1)
+		flux_rec = flux_waverec(flux_norm, 'sym5', coeff_idx)
 		#flux_rec += 1 # normalize to 1 for training
 		flux_norm = flux_rec
 
