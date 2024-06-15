@@ -1,3 +1,5 @@
+# to do: move top lines to spectrum_utils
+
 import thecannon as tc
 import numpy as np
 import astropy.units as u
@@ -6,6 +8,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from scipy import stats
 from scipy.optimize import leastsq
+from spectrum_utils import *
 
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
@@ -41,11 +44,11 @@ class Spectrum(object):
             self.order_numbers = order_numbers
         
         # store order wavelength
-        self.w = w_data[[i-1 for i in self.order_numbers]].flatten()
+        self.wav = w_data[[i-1 for i in self.order_numbers]].flatten()
         
         # compute wavelength mask
-        sodium_mask = np.where((self.w>sodium_wmin) & (self.w<sodium_wmax))[0]
-        telluric_mask = np.where((self.w>telluric_wmin) & (self.w<telluric_wmax))[0]
+        sodium_mask = np.where((self.wav>sodium_wmin) & (self.wav<sodium_wmax))[0]
+        telluric_mask = np.where((self.wav>telluric_wmin) & (self.wav<telluric_wmax))[0]
         self.mask = np.array(list(sodium_mask) + list(telluric_mask))
         
         # store cannon model information
@@ -58,10 +61,6 @@ class Spectrum(object):
         Run the test step on the spectra
         (similar to the Cannon 2 test step, 
         but we mask the sodium + telluric lines)
-        Args:
-            flux (np.array): normalized flux data
-            sigma (np.array): flux error data
-            single_star_model (tc.CannonModle): Cannon model to use for fitting
         """
         # mask out sodium, telluric features
         sigma_for_fit = self.sigma.copy()
@@ -104,25 +103,121 @@ class Spectrum(object):
         self.model_flux = self.cannon_model(self.fit_cannon_labels)
         self.residuals = self.flux - self.model_flux
 
+    def fit_binary(self):
+        # mask out sodium, telluric features
+        sigma_for_fit = self.sigma.copy()
+        if len(self.mask)>0:
+            sigma_for_fit[self.mask] = np.inf
+            
+        # binary model goodness-of-fit
+        def residuals(param):
+            """
+            per-pixel chi-squared for a given set of primary + secondary star labels
+                Args:
+                    param1 (np.array): primary star [teff, logg, met, vsini, RV]
+                    param2 (np.array): secondary star [teff, logg, met, vsini, RV]
+                Returns:
+                    resid (np.array): per pixel chi-squared
+            """
+            
+            # store primary, secondary parameters
+            cannon_param1 = param[:5].copy()
+            cannon_param2 = param[5:].copy()
+            
+            # prevent model from regions where flux ratio can't be interpolated
+            if 2450>cannon_param1[0] or 34000<cannon_param1[0]:
+                return np.inf*np.ones(len(self.flux))
+            elif 2450>cannon_param2[0] or 34000<cannon_param2[0]:
+                return np.inf*np.ones(len(self.flux))
+            
+            # re-parameterize from log(vbroad) to vbroad for Cannon
+            cannon_param1[-1] = 10**cannon_param1[-1]
+            cannon_param2[-1] = 10**cannon_param2[-1]
+            
+            # compute relative flux based on temperature
+            W1, W2 = flux_weights(cannon_param1[0], cannon_param2[0], self.wav)
+            
+            # compute single star models for both components
+            flux1 = self.cannon_model(cannon_param1[:-1])
+            flux2 = self.cannon_model(cannon_param2[:-1])
+            
+            # shift flux1, flux2 according to drv
+            delta_w1 = self.wav * cannon_param1[-1]/speed_of_light_kms
+            delta_w2 = self.wav * cannon_param2[-1]/speed_of_light_kms
+            flux1_shifted = np.interp(self.wav, self.wav + delta_w1, flux1)
+            flux2_shifted = np.interp(self.wav, self.wav + delta_w2, flux2)
+            
+            # compute weighted sum of primary, secondary
+            model = W1*flux1_shifted + W2*flux2_shifted
+            
+            # compute chisq
+            weights = 1/np.sqrt(sigma_for_fit**2+self.cannon_model.s2)
+            resid = weights * (model - self.flux)
+            return resid
+        
+        # function to run optimizer with specified initial conditions
+        def optimizer(initial_teff):
+            
+            # determine initial labels
+            fiducial_labels = self.cannon_model._fiducials[1:].tolist()
+            initial_primary_labels = [initial_teff[0]] + fiducial_labels + [0]
+            initial_secondary_labels = [initial_teff[1]] + fiducial_labels + [0]
+            
+            # re-parameterize from vbroad to log(vroad) for optimizer
+            initial_primary_labels[3] = np.log10(initial_primary_labels[3])
+            initial_secondary_labels[3] = np.log10(initial_secondary_labels[3])
+            initial_labels = initial_primary_labels + initial_secondary_labels
+
+            # perform least-sqaures fit
+            result = leastsq(residuals,x0=initial_labels)
+            fit_labels = result[0]
+            fit_chisq = np.sum(residuals(fit_labels)**2)
+            
+            # re-parameterize from log(vbroad) to vbroad
+            fit_cannon_labels = fit_labels.copy()
+            fit_cannon_labels[4] = 10**fit_cannon_labels[4]
+            fit_cannon_labels[8] = 10**fit_cannon_labels[8]
+            
+            return fit_cannon_labels, fit_chisq
+        
+        # run optimizers, store fit with lowest chi2
+        lowest_global_chi2 = np.inf    
+        fit_cannon_labels = None
+
+        for initial_teff in initial_teff_arr:
+            results = optimizer(initial_teff)
+            print(results[0][1], results[0][6], results[1])
+            if results[1] < lowest_global_chi2:
+                lowest_global_chi2 = results[1]
+                fit_cannon_labels = np.array(results[0])
+
+        # assert that the primary is the brighter star
+        if fit_cannon_labels[0]<fit_cannon_labels[5]:
+            primary_fit_cannon_labels = fit_cannon_labels[5:]
+            secondary_fit_cannon_labels = fit_cannon_labels[:5]
+            fit_cannon_labels = primary_fit_cannon_labels + secondary_fit_cannon_labels
+            
+        return fit_cannon_labels, lowest_global_chi2
+
     # temporary function to visualize the fit
-    def plot_fit(self, zoom_order=15):
+    def plot_fit(self, zoom_order=14):
         self.fit_single_star()
         plt.figure(figsize=(15,10))
         plt.rcParams['font.size']=15
         plt.subplots_adjust(hspace=0)
         plt.subplot(211)
-        plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
-        plt.plot(self.w, self.residuals, 'k-')
-        plt.xlim(self.w[0],self.w[-1])
+        plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
+        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+        plt.plot(self.wav, self.residuals-1, 'k-')
+        plt.xlim(self.wav[0],self.wav[-1])
         plt.ylabel('normalized flux')
 
         plt.subplot(212)
-        plt.errorbar(self.w, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        plt.plot(self.w, self.model_flux, 'r-', alpha=0.8, lw=1.5)
-        plt.plot(self.w, self.residuals, 'k-')
+        plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
+        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+        plt.plot(self.wav, self.residuals-1, 'k-')
         plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
-        plt.xlabel('wavelength (angsstrom)');plt.ylabel('residuals')
+        plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
 
 

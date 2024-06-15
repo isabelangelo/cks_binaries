@@ -5,10 +5,6 @@ import matplotlib.pyplot as plt
 import pywt
 import specmatchemp.library
 
-# # load wavelength array
-# lib = specmatchemp.library.read_hdf()
-# w = lib.wav
-
 # define tranform function inputs
 wt_kwargs = {
 'mode':'constant', # extends signal based on edge values
@@ -86,7 +82,7 @@ def load_spectrum(filename, filter_wavelets):
 	if filter_wavelets:
 		# compute wavelet transform of flux
 		idx_min, idx_max = 1,8 # coefficient indices to preserve in transform
-		coeff_idx = np.arange(level_min,level_max+1,1)
+		coeff_idx = np.arange(idx_min,idx_max+1,1)
 		flux_rec = flux_waverec(flux_norm, 'sym5', coeff_idx)
 		#flux_rec += 1 # normalize to 1 for training
 		flux_norm = flux_rec

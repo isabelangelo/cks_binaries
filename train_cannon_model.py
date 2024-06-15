@@ -87,29 +87,29 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 
 ####### train cannon models with wavelet filters #######
 # all 16 individual orders
-for order_n in range(1, 17):
-    train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+# for order_n in range(1, 17):
+#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
 
-# all 16 orders combined
-all_orders_list = np.arange(1,17,1).tolist()
-train_cannon_model(all_orders_list, 'all_orders_dwt')
+# # all 16 orders combined
+# all_orders_list = np.arange(1,17,1).tolist()
+# train_cannon_model(all_orders_list, 'all_orders_dwt')
 
 # all orders except 11+12 + save training data
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-train_cannon_model(no_sodium_list, 'orders_11-12_omitted_dwt', save_training_data=True)
+no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
+train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_dwt', save_training_data=True)
 
 ###### train cannon models with original spectra #######
-all 16 individual orders
-for order_n in range(1, 17):
-    train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
+# all 16 individual orders
+# for order_n in range(1, 17):
+#     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
-# all 16 orders combined
-all_orders_list = np.arange(1,17,1).tolist()
-train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
+# # all 16 orders combined
+# all_orders_list = np.arange(1,17,1).tolist()
+# train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
 
 # orders except 11+12, without wavelet filtering
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [11,12]]
-train_cannon_model(no_sodium_list, 'orders_11-12_omitted_original', filter_type='original')
+no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
+train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_original', filter_type='original')
 
 
 
