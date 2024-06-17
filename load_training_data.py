@@ -30,16 +30,16 @@ def load_kraus_table(filename):
     table['KOI'] = table['KOI'].str.replace('-B-C', '')
     return table[['KOI', 'sep_mas', 'sep_err']]
 # combine companions identified from different methods
-kraus_binaries = pd.concat([
+k16_tbl = pd.concat([
     load_kraus_table('Kraus2016_Table3.csv'), # NRM
     load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
     load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
 # query targets where any separation within reported uncertainties
 # falls within hires slit width of 0.8arcsec
 hires_slit_width = 800 # 0.8arcsec = 800mas
-kraus_binaries = kraus_binaries.query('sep_mas - sep_err < @hires_slit_width')
+k16_tbl = k16_tbl.query('sep_mas - sep_err < @hires_slit_width')
 # add column with starnames to match training set table
-kraus_binaries['id_starname'] = kraus_binaries['KOI'].str.replace('KOI-', 'K0')
+k16_tbl['id_starname'] = k16_tbl['KOI'].str.replace('KOI-', 'K0')
 
 # load binary data from Kolbl 2016
 # load + reformat discovered binares in Table 9
@@ -47,11 +47,11 @@ colnames = ['KOI','Teff_A', 'pm_Teff_A','Teff_A_err','Teff_B', 'pm_Teff_B','Teff
 'pm_FB_over_FA','FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
 colnames_to_keep = ['KOI','Teff_A','Teff_A_err','Teff_B','Teff_B_err', 'FB_over_FA',
 'FB_over_FA_err','dRV','Planetary_Data_N','Planetary_Data_Status']
-kolbl_binaries = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
+k15_tbl = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
     delimiter=' ', skiprows=1, names=colnames)[colnames_to_keep]
-id_starnames = ['K0'+str(value).zfill(4) for value in kolbl_binaries.KOI]
+id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
 # add column with starnames to match training set table
-kolbl_binaries['id_starname'] = id_starnames
+k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
 original_w_filename = './data/cks-spectra/cks-k00001_rj122.742.fits' # can be any r chip file
@@ -101,15 +101,15 @@ cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 
 # remove unresolved binaries from Kraus 2016
-kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
+kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(k16_tbl['id_starname'])]
 # update training labels
-cks_stars = cks_stars[~cks_stars['id_starname'].isin(kraus_binaries['id_starname'])]
+cks_stars = cks_stars[~cks_stars['id_starname'].isin(k16_tbl['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kraus 2016')
 
 # remove unresolved binaries from Kolbl 2015
-kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+kolbl2015_binaries = cks_stars[cks_stars['id_starname'].isin(k15_tbl['id_starname'])]
 # update training labels
-cks_stars = cks_stars[~cks_stars['id_starname'].isin(kolbl_binaries['id_starname'])]
+cks_stars = cks_stars[~cks_stars['id_starname'].isin(k15_tbl['id_starname'])]
 print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 
 # remove KOI-2864, which seems to have some RV pipeline processing errors
@@ -117,15 +117,21 @@ cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
 
 # write to .csv file
-#trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
+trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
 print('training labels saved to .csv file')
 
 # write binaries to file, perserving the source information
-kraus2016_binaries['source']='Kraus2016'
-kolbl2015_binaries['source']='Kolbl2015'
-known_binaries = pd.concat((kraus2016_binaries, kolbl2015_binaries))
-trimmed(known_binaries).to_csv(label_path+'known_binary_labels.csv', index=False)
-print('saved binary labels to .csv')
+kraus2016_companions = pd.merge(k16_tbl, kraus2016_binaries)
+trimmed(kraus2016_companions).to_csv(
+    label_path+'kraus2016_binary_labels.csv', index=False)
+print('{} CKS targets ({} <0.8" companions) from Kraus 2016 saved to .csv'.format(
+    len(kraus2016_binaries), len(kraus2016_companions)))
+
+kolbl2015_companions = pd.merge(k15_tbl, kolbl2015_binaries)
+trimmed(kolbl2015_companions).to_csv(
+    label_path+'kolbl2015_binary_labels.csv', index=False)
+print('{} CKS targets ({} SB2 copmanions) from Kolbl 2015 saved to .csv'.format(
+    len(kolbl2015_binaries), len(kolbl2015_companions)))
 
 # ============ write training flux, sigma to files  ================================================
 

@@ -1,5 +1,3 @@
-# to do: move top lines to spectrum_utils
-
 import thecannon as tc
 import numpy as np
 import astropy.units as u
@@ -9,16 +7,6 @@ from astropy.io import fits
 from scipy import stats
 from scipy.optimize import leastsq
 from spectrum_utils import *
-
-# load wavelength data
-reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
-w_data = fits.open(reference_w_filename)[0].data
-
-# define wavelength limits for masks
-sodium_wmin, sodium_wmax = 5889, 5897
-max_v_shift = 30*u.km/u.s 
-telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
-telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
 
 class Spectrum(object):
     """
@@ -76,7 +64,7 @@ class Spectrum(object):
                 Returns:
                     resid (np.array): per pixel chi-squared
             """
-            # re-parameterize from log(vbroad) to vbroad for Cannon
+            # re-parameterize from log(vsini) to vsini for Cannon
             cannon_param = param.copy()
             cannon_param[-1] = 10**cannon_param[-1]
             # compute chisq
@@ -87,16 +75,16 @@ class Spectrum(object):
         
         # initial labels from cannon model
         initial_labels = self.cannon_model._fiducials.copy()
-        # re-parameterize from vbroad to log(vroad) in optimizer
+        # re-parameterize from vsini to log(vroad) in optimizer
         initial_labels[-1] = np.log10(initial_labels[-1]) 
         # perform fit
         result = leastsq(residuals,x0=initial_labels)
         self.fit_cannon_labels = result[0].copy()
-        # re-parameterize from log(vbroad) to vbroad
+        # re-parameterize from log(vsini) to vsini
         self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
         # compute metrics associated with best-fit labels
-        # note: I need to use the logvbroad parameterization for chi-squared
-        # since it's calculated useing residuals()
+        # note: I need to use the logvsini parameterization for chi-squared
+        # since it's calculated using residuals()
         self.fit_chisq = np.sum(residuals(result[0])**2)
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
         # compute residuals of best-fit model
@@ -130,7 +118,7 @@ class Spectrum(object):
             elif 2450>cannon_param2[0] or 34000<cannon_param2[0]:
                 return np.inf*np.ones(len(self.flux))
             
-            # re-parameterize from log(vbroad) to vbroad for Cannon
+            # re-parameterize from log(vsini) to vsini for Cannon
             cannon_param1[-1] = 10**cannon_param1[-1]
             cannon_param2[-1] = 10**cannon_param2[-1]
             
@@ -163,7 +151,7 @@ class Spectrum(object):
             initial_primary_labels = [initial_teff[0]] + fiducial_labels + [0]
             initial_secondary_labels = [initial_teff[1]] + fiducial_labels + [0]
             
-            # re-parameterize from vbroad to log(vroad) for optimizer
+            # re-parameterize from vsini to log(vroad) for optimizer
             initial_primary_labels[3] = np.log10(initial_primary_labels[3])
             initial_secondary_labels[3] = np.log10(initial_secondary_labels[3])
             initial_labels = initial_primary_labels + initial_secondary_labels
@@ -171,33 +159,41 @@ class Spectrum(object):
             # perform least-sqaures fit
             result = leastsq(residuals,x0=initial_labels)
             fit_labels = result[0]
-            fit_chisq = np.sum(residuals(fit_labels)**2)
+            binary_fit_chisq = np.sum(residuals(fit_labels)**2)
             
-            # re-parameterize from log(vbroad) to vbroad
-            fit_cannon_labels = fit_labels.copy()
-            fit_cannon_labels[4] = 10**fit_cannon_labels[4]
-            fit_cannon_labels[8] = 10**fit_cannon_labels[8]
+            # re-parameterize from log(vsini) to vsini
+            binary_fit_cannon_labels = fit_labels.copy()
+            binary_fit_cannon_labels[3] = 10**binary_fit_cannon_labels[3]
+            binary_fit_cannon_labels[8] = 10**binary_fit_cannon_labels[8]
             
-            return fit_cannon_labels, fit_chisq
+            return binary_fit_cannon_labels, binary_fit_chisq
         
         # run optimizers, store fit with lowest chi2
         lowest_global_chi2 = np.inf    
-        fit_cannon_labels = None
+        binary_fit_cannon_labels = None
 
         for initial_teff in initial_teff_arr:
             results = optimizer(initial_teff)
             print(results[0][1], results[0][6], results[1])
             if results[1] < lowest_global_chi2:
                 lowest_global_chi2 = results[1]
-                fit_cannon_labels = np.array(results[0])
+                binary_fit_cannon_labels = np.array(results[0])
 
         # assert that the primary is the brighter star
         if fit_cannon_labels[0]<fit_cannon_labels[5]:
             primary_fit_cannon_labels = fit_cannon_labels[5:]
             secondary_fit_cannon_labels = fit_cannon_labels[:5]
-            fit_cannon_labels = primary_fit_cannon_labels + secondary_fit_cannon_labels
+            binary_fit_cannon_labels = primary_fit_cannon_labels + secondary_fit_cannon_labels
             
-        return fit_cannon_labels, lowest_global_chi2
+        # store metrics for binary fit
+        self.binary_fit_cannon_labels = binary_fit_cannon_labels.copy()
+        # re-parameterize from log(vsini) to vsini
+        self.binary_fit_cannon_labels[3] = 10**self.binary_fit_cannon_labels[3] 
+        self.binary_fit_cannon_labels[8] = 10**self.binary_fit_cannon_labels[8] 
+        # compute metrics associated with best-fit labels
+        # note: I need to use the logvsini parameterization for chi-squared
+        # since it's calculated using residuals()
+        self.binary_fit_chisq = np.sum(residuals(binary_fit_cannon_labels)**2)
 
     # temporary function to visualize the fit
     def plot_fit(self, zoom_order=14):
@@ -218,11 +214,6 @@ class Spectrum(object):
         plt.plot(self.wav, self.residuals-1, 'k-')
         plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
-
-
-
-
-
 
 
 
