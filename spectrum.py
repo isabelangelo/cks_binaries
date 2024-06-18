@@ -42,13 +42,23 @@ class Spectrum(object):
         self.cannon_model = cannon_model
         training_data = self.cannon_model.training_set_labels
         self.training_density_kde = stats.gaussian_kde(training_data.T)
+
+    def density_chisq_inflation(self, param):
+        """Calculate chi-squared value associated with 
+        a particular set of model parameters"""
+        if False in np.isfinite(param):
+            return np.inf # require finite parameters
+        else:
+            density = self.training_density_kde(param)[0]
+            if density > 1e-7:
+                return 1
+            else:
+                return np.sqrt((1+0.1*np.log10(1e-7/density)))
         
     def fit_single_star(self):
-        """
-        Run the test step on the spectra
-        (similar to the Cannon 2 test step, 
-        but we mask the sodium + telluric lines)
-        """
+        """ Run the test step on the spectra (similar to the Cannon 2 
+        test step, but we mask the sodium + telluric lines)"""
+
         # mask out sodium, telluric features
         sigma_for_fit = self.sigma.copy()
         if len(self.mask)>0:
@@ -63,14 +73,20 @@ class Spectrum(object):
                 Returns:
                     resid (np.array): per pixel chi-squared
             """
+
             # re-parameterize from log(vsini) to vsini for Cannon
             cannon_param = param.copy()
             cannon_param[-1] = 10**cannon_param[-1]
+
             # compute chisq
             model = self.cannon_model(cannon_param)
             weights = 1/np.sqrt(sigma_for_fit**2+self.cannon_model.s2)
             resid = weights * (model - self.flux)
-            return resid
+
+            # inflate chisq if labels are in low density label space
+            density_weight = self.density_chisq_inflation(cannon_param)
+
+            return resid * density_weight
         
         # initial labels from cannon model
         initial_labels = self.cannon_model._fiducials.copy()
@@ -141,7 +157,13 @@ class Spectrum(object):
             # compute chisq
             weights = 1/np.sqrt(sigma_for_fit**2+self.cannon_model.s2)
             resid = weights * (model - self.flux)
-            return resid
+
+            # inflate chisq if labels are in low density label space
+            primary_density_weight = self.density_chisq_inflation(cannon_param1[:-1])
+            secondary_density_weight = self.density_chisq_inflation(cannon_param2[:-1])
+            density_weight = primary_density_weight * secondary_density_weight
+
+            return resid * density_weight
         
         # function to run optimizer with specified initial conditions
         def optimizer(initial_teff):
@@ -217,8 +239,4 @@ class Spectrum(object):
         plt.plot(self.wav, self.model_residuals-1, 'k-')
         plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
-
-
-
-
 
