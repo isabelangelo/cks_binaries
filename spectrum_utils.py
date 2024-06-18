@@ -19,9 +19,8 @@ max_v_shift = 30*u.km/u.s
 telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
 telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
 
-
 # initial Teff values for binary model optimizer
-teff_grid = np.arange(4000,8000,1000)
+teff_grid = np.arange(4000,10000,2000)
 initial_teff_arr = [(x, y) for x in teff_grid for y in teff_grid if x>=y]
 
 # speed of light for wavelength calculation

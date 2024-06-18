@@ -77,14 +77,14 @@ class Spectrum(object):
         # re-parameterize from vsini to log(vroad) in optimizer
         initial_labels[-1] = np.log10(initial_labels[-1]) 
         # perform fit
-        result = leastsq(residuals,x0=initial_labels)
+        result = leastsq(residuals,x0=initial_labels, full_output=True)
         self.fit_cannon_labels = result[0].copy()
         # re-parameterize from log(vsini) to vsini
         self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
         # compute metrics associated with best-fit labels
         # note: I need to use the logvsini parameterization for chi-squared
         # since it's calculated using residuals()
-        self.fit_chisq = np.sum(residuals(result[0])**2)
+        self.fit_chisq = np.sum(result[2]["fvec"]**2)
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
         # compute residuals of best-fit model
         self.model_flux = self.cannon_model(self.fit_cannon_labels)
@@ -145,6 +145,7 @@ class Spectrum(object):
         
         # function to run optimizer with specified initial conditions
         def optimizer(initial_teff):
+            print(initial_teff)
             
             # determine initial labels
             fiducial_labels = self.cannon_model._fiducials[1:].tolist()
@@ -157,9 +158,9 @@ class Spectrum(object):
             initial_labels = initial_primary_labels + initial_secondary_labels
 
             # perform least-sqaures fit
-            result = leastsq(residuals,x0=initial_labels)
+            result = leastsq(residuals,x0=initial_labels, full_output=True)
             fit_labels = result[0]
-            binary_fit_chisq = np.sum(residuals(fit_labels)**2)
+            binary_fit_chisq = np.sum(result[2]["fvec"]**2)
             
             # re-parameterize from log(vsini) to vsini
             binary_fit_cannon_labels = fit_labels.copy()
@@ -167,29 +168,35 @@ class Spectrum(object):
             binary_fit_cannon_labels[8] = 10**binary_fit_cannon_labels[8]
             
             return binary_fit_cannon_labels, binary_fit_chisq
+
+        # I need the chisq to come from the output
         
         # run optimizers, store fit with lowest chi2
-        lowest_global_chi2 = np.inf    
+        lowest_global_chisq = np.inf    
         binary_fit_cannon_labels = None
 
         for initial_teff in initial_teff_arr:
             results = optimizer(initial_teff)
-            if results[1] < lowest_global_chi2:
-                lowest_global_chi2 = results[1]
+            print(results[0][0], results[0][5], results[1])
+            print(self.training_density_kde(results[0][:4]), self.training_density_kde(results[0][5:-1]))
+            print('')
+            if results[1] < lowest_global_chisq:
+                lowest_global_chisq = results[1]
                 binary_fit_cannon_labels = np.array(results[0])
 
         # assert that the primary is the brighter star
         if binary_fit_cannon_labels[0]<binary_fit_cannon_labels[5]:
-            primary_fit_cannon_labels = fit_cannon_labels[5:]
-            secondary_fit_cannon_labels = fit_cannon_labels[:5]
+            primary_fit_cannon_labels = binary_fit_cannon_labels[5:].tolist()
+            secondary_fit_cannon_labels = binary_fit_cannon_labels[:5].tolist()
             binary_fit_cannon_labels = primary_fit_cannon_labels + secondary_fit_cannon_labels
         
         # store metrics for binary fit
         self.binary_fit_cannon_labels = binary_fit_cannon_labels.copy()
         # compute metrics associated with best-fit labels
-        # note: I need to use the logvsini parameterization for chi-squared
-        # since it's calculated using residuals()
-        self.binary_fit_chisq = np.sum(residuals(binary_fit_cannon_labels)**2)
+        self.binary_fit_chisq = lowest_global_chisq
+        self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
+        #self.primary_training_density = self.training_density_kde(self.binary_fit_cannon_labels)[:5]
+        #self.secondary_training_density = self.training_density_kde(self.binary_fit_cannon_labels)[5:]
 
     # temporary function to visualize the fit
     def plot_fit(self, zoom_order=14):
