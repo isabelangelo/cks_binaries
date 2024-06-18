@@ -3,7 +3,6 @@ import numpy as np
 import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
-from astropy.io import fits
 from scipy import stats
 from scipy.optimize import leastsq
 from spectrum_utils import *
@@ -89,7 +88,8 @@ class Spectrum(object):
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
         # compute residuals of best-fit model
         self.model_flux = self.cannon_model(self.fit_cannon_labels)
-        self.residuals = self.flux - self.model_flux
+        self.model_residuals = self.flux - self.model_flux
+
 
     def fit_binary(self):
         # mask out sodium, telluric features
@@ -119,8 +119,8 @@ class Spectrum(object):
                 return np.inf*np.ones(len(self.flux))
             
             # re-parameterize from log(vsini) to vsini for Cannon
-            cannon_param1[-1] = 10**cannon_param1[-1]
-            cannon_param2[-1] = 10**cannon_param2[-1]
+            cannon_param1[3] = 10**cannon_param1[3]
+            cannon_param2[3] = 10**cannon_param2[3]
             
             # compute relative flux based on temperature
             W1, W2 = flux_weights(cannon_param1[0], cannon_param2[0], self.wav)
@@ -174,22 +174,18 @@ class Spectrum(object):
 
         for initial_teff in initial_teff_arr:
             results = optimizer(initial_teff)
-            print(results[0][1], results[0][6], results[1])
             if results[1] < lowest_global_chi2:
                 lowest_global_chi2 = results[1]
                 binary_fit_cannon_labels = np.array(results[0])
 
         # assert that the primary is the brighter star
-        if fit_cannon_labels[0]<fit_cannon_labels[5]:
+        if binary_fit_cannon_labels[0]<binary_fit_cannon_labels[5]:
             primary_fit_cannon_labels = fit_cannon_labels[5:]
             secondary_fit_cannon_labels = fit_cannon_labels[:5]
             binary_fit_cannon_labels = primary_fit_cannon_labels + secondary_fit_cannon_labels
-            
+        
         # store metrics for binary fit
         self.binary_fit_cannon_labels = binary_fit_cannon_labels.copy()
-        # re-parameterize from log(vsini) to vsini
-        self.binary_fit_cannon_labels[3] = 10**self.binary_fit_cannon_labels[3] 
-        self.binary_fit_cannon_labels[8] = 10**self.binary_fit_cannon_labels[8] 
         # compute metrics associated with best-fit labels
         # note: I need to use the logvsini parameterization for chi-squared
         # since it's calculated using residuals()
@@ -211,7 +207,7 @@ class Spectrum(object):
         plt.subplot(212)
         plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
-        plt.plot(self.wav, self.residuals-1, 'k-')
+        plt.plot(self.wav, self.model_residuals-1, 'k-')
         plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 

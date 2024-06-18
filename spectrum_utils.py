@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import astropy.units as u
 import astropy.constants as c
+from astropy.io import fits
 from astropy.modeling.models import BlackBody
 from scipy.interpolate import interp1d
 
