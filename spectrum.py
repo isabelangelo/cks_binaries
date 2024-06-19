@@ -43,17 +43,27 @@ class Spectrum(object):
         training_data = self.cannon_model.training_set_labels
         self.training_density_kde = stats.gaussian_kde(training_data.T)
 
-    def density_chisq_inflation(self, param):
-        """Calculate chi-squared value associated with 
+    def binary_model(self, cannon_param1, cannon_param2):
+        """Calculate binary model associated with set of parameters
         a particular set of model parameters"""
-        if False in np.isfinite(param):
-            return np.inf # require finite parameters
-        else:
-            density = self.training_density_kde(param)[0]
-            if density > 1e-7:
-                return 1
-            else:
-                return np.sqrt((1+0.1*np.log10(1e-7/density)))
+
+        # compute relative flux based on temperature
+        W1, W2 = flux_weights(cannon_param1[0], cannon_param2[0], self.wav)
+        
+        # compute single star models for both components
+        flux1 = self.cannon_model(cannon_param1[:-1])
+        flux2 = self.cannon_model(cannon_param2[:-1])
+        
+        # shift flux1, flux2 according to drv
+        delta_w1 = self.wav * cannon_param1[-1]/speed_of_light_kms
+        delta_w2 = self.wav * cannon_param2[-1]/speed_of_light_kms
+        flux1_shifted = np.interp(self.wav, self.wav + delta_w1, flux1)
+        flux2_shifted = np.interp(self.wav, self.wav + delta_w2, flux2)
+        
+        # compute weighted sum of primary, secondary
+        model = W1*flux1_shifted + W2*flux2_shifted
+
+        return model
         
     def fit_single_star(self):
         """ Run the test step on the spectra (similar to the Cannon 2 
@@ -83,10 +93,7 @@ class Spectrum(object):
             weights = 1/np.sqrt(sigma_for_fit**2+self.cannon_model.s2)
             resid = weights * (model - self.flux)
 
-            # inflate chisq if labels are in low density label space
-            density_weight = self.density_chisq_inflation(cannon_param)
-
-            return resid * density_weight
+            return resid
         
         # initial labels from cannon model
         initial_labels = self.cannon_model._fiducials.copy()
@@ -118,8 +125,9 @@ class Spectrum(object):
             """
             per-pixel chi-squared for a given set of primary + secondary star labels
                 Args:
-                    param1 (np.array): primary star [teff, logg, met, vsini, RV]
-                    param2 (np.array): secondary star [teff, logg, met, vsini, RV]
+                    param (np.array): [teff1, logg1, met1, vsini1, RV1, 
+                    teff2, logg2, met2, vsini2, RV2] 
+                    (1 denotes primary, 2 denotes secondary)
                 Returns:
                     resid (np.array): per pixel chi-squared
             """
@@ -138,32 +146,12 @@ class Spectrum(object):
             cannon_param1[3] = 10**cannon_param1[3]
             cannon_param2[3] = 10**cannon_param2[3]
             
-            # compute relative flux based on temperature
-            W1, W2 = flux_weights(cannon_param1[0], cannon_param2[0], self.wav)
-            
-            # compute single star models for both components
-            flux1 = self.cannon_model(cannon_param1[:-1])
-            flux2 = self.cannon_model(cannon_param2[:-1])
-            
-            # shift flux1, flux2 according to drv
-            delta_w1 = self.wav * cannon_param1[-1]/speed_of_light_kms
-            delta_w2 = self.wav * cannon_param2[-1]/speed_of_light_kms
-            flux1_shifted = np.interp(self.wav, self.wav + delta_w1, flux1)
-            flux2_shifted = np.interp(self.wav, self.wav + delta_w2, flux2)
-            
-            # compute weighted sum of primary, secondary
-            model = W1*flux1_shifted + W2*flux2_shifted
-            
             # compute chisq
+            model = self.binary_model(cannon_param1, cannon_param2)
             weights = 1/np.sqrt(sigma_for_fit**2+self.cannon_model.s2)
             resid = weights * (model - self.flux)
 
-            # inflate chisq if labels are in low density label space
-            primary_density_weight = self.density_chisq_inflation(cannon_param1[:-1])
-            secondary_density_weight = self.density_chisq_inflation(cannon_param2[:-1])
-            density_weight = primary_density_weight * secondary_density_weight
-
-            return resid * density_weight
+            return resid 
         
         # function to run optimizer with specified initial conditions
         def optimizer(initial_teff):
@@ -190,8 +178,6 @@ class Spectrum(object):
             binary_fit_cannon_labels[8] = 10**binary_fit_cannon_labels[8]
             
             return binary_fit_cannon_labels, binary_fit_chisq
-
-        # I need the chisq to come from the output
         
         # run optimizers, store fit with lowest chi2
         lowest_global_chisq = np.inf    
@@ -217,19 +203,24 @@ class Spectrum(object):
         # compute metrics associated with best-fit labels
         self.binary_fit_chisq = lowest_global_chisq
         self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
-        #self.primary_training_density = self.training_density_kde(self.binary_fit_cannon_labels)[:5]
-        #self.secondary_training_density = self.training_density_kde(self.binary_fit_cannon_labels)[5:]
+        self.primary_training_density = self.training_density_kde(self.binary_fit_cannon_labels[:4])
+        self.secondary_training_density = self.training_density_kde(self.binary_fit_cannon_labels[5:-1])
+        # compute residuals of best-fit model
+        self.binary_model_flux = self.binary_model(
+            self.binary_fit_cannon_labels[:5],
+            self.binary_fit_cannon_labels[5:])
+        self.binary_model_residuals = self.flux - self.binary_model_flux
 
     # temporary function to visualize the fit
     def plot_fit(self, zoom_order=14):
         self.fit_single_star()
-        plt.figure(figsize=(15,10))
+        plt.figure(figsize=(10,7))
         plt.rcParams['font.size']=15
         plt.subplots_adjust(hspace=0)
         plt.subplot(211)
         plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', ecolor='#E8E8E8', elinewidth=4, zorder=0)
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
-        plt.plot(self.wav, self.residuals-1, 'k-')
+        plt.plot(self.wav, self.model_residuals-1, 'k-')
         plt.xlim(self.wav[0],self.wav[-1])
         plt.ylabel('normalized flux')
 
@@ -239,4 +230,41 @@ class Spectrum(object):
         plt.plot(self.wav, self.model_residuals-1, 'k-')
         plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
+
+    def plot_binary(self, zoom_order=14):
+        self.fit_single_star()
+        self.fit_binary()
+        # create figure
+        plt.figure(figsize=(10,7))
+        plt.rcParams['font.size']=15
+        # top panel: spectrum with single star, binary fits
+        plt.subplot(211);plt.ylabel('wavelet-filtered flux')
+        plt.plot(self.wav, self.flux, 'k-', label='data')
+        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
+        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
+        plt.legend(ncols=3, loc='upper left')
+        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
+        # middle panel: residuals of single star, binary fits
+        plt.subplot(212);plt.ylabel('residuals')
+        single_resid = r'$\Sigma$(resid)$^2$='+str(np.sum((self.model_residuals)**2).round(2))
+        binary_resid = r'$\Sigma$(resid)$^2$='+str(np.sum((self.binary_model_residuals)**2).round(2))
+        plt.plot(self.wav, self.model_residuals, 'r-', alpha=0.7, label=single_resid)
+        plt.plot(self.wav, self.binary_model_residuals, 'c-', alpha=0.7, label=binary_resid)
+        plt.legend(ncols=2, labelcolor='linecolor', loc='upper left')
+        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
+        plt.show()
+
+# test plot
+import pandas as pd
+import thecannon as tc
+binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
+order_numbers = [i for i in range(1,17) if i not in (11,12)]
+koi289 = Spectrum(
+    binary_flux['K00289'], 
+    binary_sigma['K00289'],
+    order_numbers,
+    model)
+koi289.plot_binary()
 
