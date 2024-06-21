@@ -7,11 +7,11 @@ from astropy.modeling.models import BlackBody
 from scipy.interpolate import interp1d
 
 __all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "speed_of_light_kms",
-            "w_data", "sodium_wmin", "sodium_wmax", "telluric_wmin", "telluric_wmax"]
+            "wav_data", "sodium_wmin", "sodium_wmax", "telluric_wmin", "telluric_wmax"]
 
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
-w_data = fits.open(reference_w_filename)[0].data
+wav_data = fits.open(reference_w_filename)[0].data
 
 # define wavelength limits for masks
 sodium_wmin, sodium_wmax = 5889, 5897

@@ -47,7 +47,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 		# define training set labels
 		cks_keys = labels_to_plot
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
-		metric_keys = ['chisq', 'training_density']
+		metric_keys = ['fit_chisq', 'binary_fit_chisq','training_density', 'delta_chisq']
 		vectorizer = tc.vectorizer.PolynomialVectorizer(cks_keys, 2)
 
 		# bin training data into 5 test sets
@@ -98,12 +98,13 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 					order_numbers, 
 					model_leave1out)
 				spec.fit_single_star()
+				spec.fit_binary()
 				cannon_labels = spec.fit_cannon_labels
 
 				# store data for plot
 				keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
 				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
-						+ [spec.fit_chisq, spec.training_density]
+						+ [spec.fit_chisq, spec.binary_fit_chisq, spec.training_density + spec.delta_chisq]
 				cannon_label_data.append(dict(zip(keys, values)))
 
 		# convert label data to dataframe

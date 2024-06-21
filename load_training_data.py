@@ -55,10 +55,10 @@ k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
 original_w_filename = './data/cks-spectra/cks-k00001_rj122.742.fits' # can be any r chip file
-w_data = read_hires_fits(original_w_filename).w[:,:-1] # require even number of elements
-w_data = w_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
+wav_data = read_hires_fits(original_w_filename).w[:,:-1] # require even number of elements
+wav_data = wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
-fits.HDUList([fits.PrimaryHDU(w_data)]).writeto(reference_w_filename, overwrite=True)
+fits.HDUList([fits.PrimaryHDU(wav_data)]).writeto(reference_w_filename, overwrite=True)
 print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 
 # ============ clean training set + write labels to file  =========================================

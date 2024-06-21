@@ -32,7 +32,7 @@ class Spectrum(object):
             self.order_numbers = order_numbers
         
         # store order wavelength
-        self.wav = w_data[[i-1 for i in self.order_numbers]].flatten()
+        self.wav = wav_data[[i-1 for i in self.order_numbers]].flatten()
         
         # compute wavelength mask
         sodium_mask = np.where((self.wav>sodium_wmin) & (self.wav<sodium_wmax))[0]
@@ -99,18 +99,39 @@ class Spectrum(object):
         Asserts that the primary is the brighter star in the fit
         """
 
+        # map wavelengths in each order to indices in flattened array
+        # this speeds up interpolation step in shift()
+        wav_idx = [np.nonzero(np.isin(self.wav, wav_order))[0] for wav_order in wav_data]
+
+        # store names of binary parameter keys
+        # to access when calling cannon model
+        cannon_param1_keys = ['teff1','logg1','feh1','vsini1','rv1']
+        cannon_param2_keys = ['teff2','logg2','feh2','vsini2','rv2']
+
+        # compute weights for chisq calcultion
+        weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
+
+        # kwgsfor local optimizer (l-bfgs-b)
+        lbfgsb_options = {
+            'maxiter': 100,  # Maximum number of iterations
+            'ftol': 1e-8,     # Function value tolerance
+            'gtol': 1e-5,     # Gradient norm tolerance
+            'eps': 1e-8       # Step size for numerical gradient approximation
+        }
+
         def shift(wav, flux, rv_shift):
             """Shift flux according to input RV"""
             delta_wav = wav * rv_shift/speed_of_light_kms
-            flux_shifted = np.array([])
-            for wav_order in w_data:
-                idx = np.nonzero(np.isin(wav, wav_order))[0]
+            flux_shifted = np.empty(spec.flux.shape)
+            for i in range(len(wav_data)):
+                w_order = wav_data[i]
+                idx = wav_idx[i]
                 if len(idx)>0:
                     order_flux_shifted = np.interp(
                         wav[idx], 
                         wav[idx] + delta_wav[idx], 
                         flux[idx])
-                    flux_shifted = np.concatenate((flux_shifted, order_flux_shifted))
+                    flux_shifted[idx] = order_flux_shifted
             return flux_shifted
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
@@ -134,7 +155,7 @@ class Spectrum(object):
             return model
 
 
-        def residuals(params, wav, sigma_for_fit, flux, cannon_model):
+        def residuals(params, wav, flux, cannon_model):
             """
             per-pixel chi-squared for a given set of primary + secondary star labels
                 Args:
@@ -145,18 +166,17 @@ class Spectrum(object):
                     resid (np.array): per pixel chi-squared
             """
             # store primary, secondary parameters
-            cannon_param1 = [params[i].value for i in ['teff1','logg1','feh1','vsini1','rv1']]
-            cannon_param2 = [params[i].value for i in ['teff2','logg2','feh2','vsini2','rv2']]
+            cannon_param1 = [params[i].value for i in cannon_param1_keys]
+            cannon_param2 = [params[i].value for i in cannon_param2_keys]
 
             # compute chisq
             model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
-            weights = 1/np.sqrt(sigma_for_fit**2+cannon_model.s2)
             resid = weights * (model - flux)
 
             return resid
         
         # fit single star model to inform initial conditions
-        self.fit_single_star()
+        #self.fit_single_star()
         logg_init, feh_init, vsini_init = self.fit_cannon_labels[1:]
 
         # perform coarse brute search for ballpark teff1, teff2
@@ -172,8 +192,9 @@ class Spectrum(object):
         brute_params.add('feh2', value=feh_init, vary=False)
         brute_params.add('vsini2', value=vsini_init, vary=False)
         brute_params.add('rv2', value=0, vary=False)
-        chisq_args = (self.wav, self.sigma_for_fit, self.flux, self.cannon_model)
-        op_brute = lmfit.minimize(residuals, brute_params, args=chisq_args, method='brute')
+        chisq_args = (self.wav, self.flux, self.cannon_model)
+        op_brute = lmfit.minimize(residuals, brute_params, args=chisq_args, 
+            method='brute', calc_covar=False)
         brute_teff = (op_brute.params['teff1'].value, op_brute.params['teff2'].value)
         
         # perform localized search at minimum from brute search
@@ -190,7 +211,7 @@ class Spectrum(object):
         local_params.add('vsini2', min=0, max=30, value=vsini_init, vary=True)
         local_params.add('rv2', min=-10, max=10, value=0, vary=True)
         op_lbfgsb = lmfit.minimize(residuals, local_params, args=chisq_args, 
-            method='lbfgsb', maxiter=100)
+            method='lbfgsb', calc_covar=False, options=lbfgsb_options)
         
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = list(op_lbfgsb.params.valuesdict().values())
@@ -202,6 +223,7 @@ class Spectrum(object):
         self.binary_model_residuals = self.flux - self.model_flux
         # compute metrics associated with best-fit labels
         self.binary_fit_chisq = op_lbfgsb.chisqr
+        self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
         
 
     # temporary function to visualize the fit
@@ -223,7 +245,7 @@ class Spectrum(object):
             ecolor='#E8E8E8', elinewidth=4, zorder=0)
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
         plt.plot(self.wav, self.model_residuals-1, 'k-')
-        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
+        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
     def plot_binary(self, zoom_order=3):
@@ -243,7 +265,7 @@ class Spectrum(object):
         plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
         plt.legend(ncols=3, loc='upper left')
-        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
+        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
         # middle panel: residuals of single star, binary fits, zoomed in
         plt.subplot(313);plt.ylabel('residuals')
         single_resid = '$\chi^2$={}'.format(int(self.fit_chisq))
@@ -251,22 +273,25 @@ class Spectrum(object):
         plt.plot(self.wav, self.binary_model_residuals, 'c-', alpha=0.7, label=binary_resid)
         plt.plot(self.wav, self.model_residuals, 'r-', alpha=0.7, label=single_resid)
         plt.legend(ncols=2, labelcolor='linecolor', loc='upper left')
-        plt.xlim(w_data[zoom_order-1][0], w_data[zoom_order-1][-1])
+        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)')
         plt.show()
 
 # test plots
-# import pandas as pd
-# import thecannon as tc
-# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-# model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
-# order_numbers = [i for i in range(1,17) if i not in (11,12)]
-# Spectrum(
-#     binary_flux['K00289'], 
-#     binary_sigma['K00289'],
-#     order_numbers,
-#     model).plot_binary()
+import pandas as pd
+import thecannon as tc
+binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
+order_numbers = [i for i in range(1,17) if i not in (11,12)]
+spec = Spectrum(
+    binary_flux['K00289'], 
+    binary_sigma['K00289'],
+    order_numbers,
+    model)
+spec.fit_single_star()
+spec.fit_binary()
+print(spec.binary_fit_chisq)
 # Spectrum(
 #     binary_flux['K00291'], 
 #     binary_sigma['K00291'],
