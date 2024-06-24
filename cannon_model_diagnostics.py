@@ -104,12 +104,13 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 				# store data for plot
 				keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
 				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
-						+ [spec.fit_chisq, spec.binary_fit_chisq, spec.training_density + spec.delta_chisq]
+						+ [spec.fit_chisq, spec.binary_fit_chisq, spec.training_density, spec.delta_chisq]
 				cannon_label_data.append(dict(zip(keys, values)))
+				print(id_starname)
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
-		cannon_label_path = model_dir+'/cannon_labels.csv'.format(model_suffix)
+		cannon_label_path = model_dir+'/cannon_labels.csv'
 		print('saving training set cannon output labels to {}'.format(cannon_label_path))
 		cannon_label_df.to_csv(cannon_label_path)
 		return cannon_label_df

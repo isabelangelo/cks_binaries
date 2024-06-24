@@ -10,7 +10,7 @@ from spectrum_utils import *
 
 class Spectrum(object):
     """
-    HIRES spectrum object
+    HIRES Spectrum object
     
     Args:
         flux (np.array): flux of object, post-wavelet transform
@@ -50,7 +50,7 @@ class Spectrum(object):
         self.training_density_kde = stats.gaussian_kde(training_data.T)
         
     def fit_single_star(self):
-        """ Run the test step on the spectra (similar to the Cannon 2 
+        """ Run the test step on the ra (similar to the Cannon 2 
         test step, but we mask the sodium + telluric lines)"""
             
         # single star model goodness-of-fit
@@ -122,7 +122,7 @@ class Spectrum(object):
         def shift(wav, flux, rv_shift):
             """Shift flux according to input RV"""
             delta_wav = wav * rv_shift/speed_of_light_kms
-            flux_shifted = np.empty(spec.flux.shape)
+            flux_shifted = np.empty(flux.shape)
             for i in range(len(wav_data)):
                 w_order = wav_data[i]
                 idx = wav_idx[i]
@@ -180,7 +180,6 @@ class Spectrum(object):
         logg_init, feh_init, vsini_init = self.fit_cannon_labels[1:]
 
         # perform coarse brute search for ballpark teff1, teff2
-        print('running brute search optimizer')
         brute_params = lmfit.Parameters()
         brute_params.add('teff1', min=4500, max=6500, brute_step=100)
         brute_params.add('logg1', value=logg_init, vary=False)
@@ -198,7 +197,6 @@ class Spectrum(object):
         brute_teff = (op_brute.params['teff1'].value, op_brute.params['teff2'].value)
         
         # perform localized search at minimum from brute search
-        print('running local optimizer')
         local_params = lmfit.Parameters()
         local_params.add('teff1', min=4500, max=6500, value=max(brute_teff), vary=True)
         local_params.add('logg1', min=2.8, max=5, value=logg_init, vary=True)
@@ -278,20 +276,21 @@ class Spectrum(object):
         plt.show()
 
 # test plots
-import pandas as pd
-import thecannon as tc
-binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
-order_numbers = [i for i in range(1,17) if i not in (11,12)]
-spec = Spectrum(
-    binary_flux['K00289'], 
-    binary_sigma['K00289'],
-    order_numbers,
-    model)
-spec.fit_single_star()
-spec.fit_binary()
-print(spec.binary_fit_chisq)
+# import pandas as pd
+# import thecannon as tc
+# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+# model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
+# order_numbers = [i for i in range(1,17) if i not in (11,12)]
+# spec = Spectrum(
+#     binary_flux['K00289'], 
+#     binary_sigma['K00289'],
+#     order_numbers,
+#     model)
+# spec.fit_single_star()
+# spec.fit_binary()
+# print(spec.binary_fit_chisq)
+# print(binary_fit_chisq)
 # Spectrum(
 #     binary_flux['K00291'], 
 #     binary_sigma['K00291'],
