@@ -9,7 +9,7 @@ import glob
 import os
 
 # paths to store shifted spectra
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_r'
+shifted_resampled_path = './data/hires-spectra_shifted_resampled_r'
 kepler1656_path = './data/kepler1656_spectra'
 
 # load specmatch library for reference spectra
@@ -52,12 +52,12 @@ for order_idx in range(16):
 
 # iterate over CKS spectra
 print('shifting + registering training set spectra')
-spectrum_filenames = glob.glob('./data/cks-spectra/*rj*.fits')
+spectrum_filenames = glob.glob('./data/hires-spectra_r/*.fits')
 for filename in spectrum_filenames:
     shift_and_save_orders(shifted_resampled_path, filename)
 
 # shift kepler-1656 spectra for wavelet diagnostics
 print('shifting and registering Kepler-1656 spectra for diagnostics')
-kepler1656_filenames = glob.glob(kepler1656_path + '/*rj*.fits')
-for filename in kepler1656_raw_spectra_filenames:
+kepler1656_filenames = glob.glob(kepler1656_path + '/*.fits')
+for filename in kepler1656_filenames:
     shift_and_save_orders(kepler1656_path, filename)
