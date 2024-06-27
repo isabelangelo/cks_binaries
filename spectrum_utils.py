@@ -36,7 +36,6 @@ mass_pm2013 = np.array([float(i) for i in pm2013['Msun']])
 valid_mass = ~np.isnan(mass_pm2013)
 teff2radius = interp1d(teff_pm2013[valid_mass], R_pm2013[valid_mass])
 
-
 # function to compute flux weights 
 # of primary, secondary in binary model
 def flux_weights(teff1, teff2, wav):
@@ -53,12 +52,12 @@ def flux_weights(teff1, teff2, wav):
     bb2_curve = bb2(wav*u.AA).value
 
     # calculate unweighted flux contributions
-    W1 = bb1_curve*teff2radius(teff1)**2
-    W2 = bb2_curve*teff2radius(teff2)**2
+    B1 = bb1_curve*teff2radius(teff1)**2
+    B2 = bb2_curve*teff2radius(teff2)**2
     
     # normalize weights to sum to 1
-    W_sum = W1 + W2
-    W1 /= W_sum
-    W2 /= W_sum
+    B_sum = B1 + B2
+    W1 = B1/B_sum
+    W2 = B2/B_sum
 
     return W1, W2

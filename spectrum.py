@@ -218,7 +218,7 @@ class Spectrum(object):
             self.binary_fit_cannon_labels[:-5],
             self.wav, 
             self.cannon_model)
-        self.binary_model_residuals = self.flux - self.model_flux
+        self.binary_model_residuals = self.flux - self.binary_model_flux
         # compute metrics associated with best-fit labels
         self.binary_fit_chisq = op_lbfgsb.chisqr
         self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
@@ -246,7 +246,8 @@ class Spectrum(object):
         plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
-    def plot_binary(self, zoom_order=3):
+    def plot_binary(self, zoom_min=5150, zoom_max=5190):
+        self.fit_single_star()
         self.fit_binary()
         # create figure
         plt.figure(figsize=(10,7))
@@ -254,24 +255,25 @@ class Spectrum(object):
         # top panel: spectrum with single star, binary fits
         plt.subplot(311);plt.ylabel('wavelet-filtered\nflux')
         plt.plot(self.wav, self.flux, 'k-', label='data')
-        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
+        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
+        plt.axvspan(telluric_wmin, telluric_wmax, color='lightgrey', alpha=0.6)
         plt.legend(ncols=3, loc='upper left')
         # middel panel: spectrum with single star, binary fits, zoomed in
         plt.subplot(312);plt.ylabel('wavelet-filtered\nflux')
         plt.plot(self.wav, self.flux, 'k-', label='data')
-        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
+        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
         plt.legend(ncols=3, loc='upper left')
-        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
+        plt.xlim(zoom_min, zoom_max);plt.ylim(-0.7,0.4)
         # middle panel: residuals of single star, binary fits, zoomed in
         plt.subplot(313);plt.ylabel('residuals')
-        single_resid = '$\chi^2$={}'.format(int(self.fit_chisq))
-        binary_resid = '$\chi^2$={}'.format(int(self.binary_fit_chisq))
-        plt.plot(self.wav, self.binary_model_residuals, 'c-', alpha=0.7, label=binary_resid)
+        single_resid = 'single fit\n'+'$\chi^2$={}'.format(int(self.fit_chisq))
+        binary_resid = 'binary fit\n'+'$\chi^2$={}'.format(int(self.binary_fit_chisq))
         plt.plot(self.wav, self.model_residuals, 'r-', alpha=0.7, label=single_resid)
-        plt.legend(ncols=2, labelcolor='linecolor', loc='upper left')
-        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
+        plt.plot(self.wav, self.binary_model_residuals, 'c-', alpha=0.7, label=binary_resid)
+        plt.legend(ncols=2, labelcolor='linecolor', loc='lower left')
+        plt.xlim(zoom_min, zoom_max)
         plt.xlabel('wavelength (angstrom)')
         plt.show()
 
