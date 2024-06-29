@@ -17,7 +17,7 @@ print(len(cks_stars), 'stars from CKS')
 
 # remove KOI-2864, which seems to have some RV pipeline processing errors
 cks_stars = cks_stars[~cks_stars.Name.str.contains('KOI-02864')]
-print(len(cks_stars), ' after removing stars with processing errors')
+print(len(cks_stars), ' after removing KOI-02864 due to processing errors')
 
 # table with CKS-cool stars
 lib = specmatchemp.library.read_hdf()
@@ -28,61 +28,6 @@ print(len(cks_cool_stars), 'stars from CKS-cool')
 
 # store password for rsync
 password = "CPS<3RVs"
-
-# function to run rsync command
-def run_rsync(command):
-    # run the command using pexpect
-    program = pexpect.spawn(command)
-    program.expect("observer@cadence.caltech.edu's password:")
-    program.sendline(password)
-    program.expect(pexpect.EOF)
-
-# copy over CKS stars
-for index, row in cks_stars.iterrows():
-    # filenames for rsync command
-    fits_filename = 'rj{}.fits'.format(row.spectrum_fileroot)
-    object_name = row.id_starname
-    if os.path.exists('./data/hires-spectra_r/'+object_name+'.fits'):
-        print('{} already in ./data/hires-spectra_r/'.format(object_name))
-        pass
-    else:
-        # write command
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/hires-spectra_r/{}.fits".format(
-            fits_filename,
-            object_name)
-        run_rsync(command)
-        print('copied {} to ./data/hires-spectra_r/'.format(object_name))
-
-# copy over CKS-cool stars
-for index, row in cks_cool_stars.iterrows():
-    # filenames for rsync command
-    fits_filename = row.lib_obs+'.fits'
-    object_name = row.cps_name
-    if os.path.exists('./data/hires-spectra_r/'+object_name+'.fits'):
-        print('{} already in ./data/hires-spectra_r/'.format(object_name))
-        pass
-    else:
-        # write command
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/hires-spectra_r/{}.fits".format(
-            fits_filename,
-            object_name)
-        run_rsync(command)
-        print('copied {} to ./data/hires-spectra_r/'.format(object_name))
-
-
-# copy over Kepler-1656 spectra to test wavelet filtering
-for fits_filename in ['rj351.570.fits', 'rj487.76.fits']:
-    object_name = 'K00367'
-    object_filename = './data/kepler1656_spectra/{}_{}'.format(object_name, fits_filename)
-    if os.path.exists(object_filename):
-        print('{} already in ./data/kepler1656_spectra/'.format(object_name))
-        pass
-    else:
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} {}".format(
-            fits_filename,
-            object_filename)
-        run_rsync(command)
-        print('copied {} to ./data/kepler1656_spectra/'.format(object_name))
 
 # rename columns of CKS sample
 cks_cols_to_keep = ['Name', 'Obs','Teff', 'e_Teff', 'logg', 'e_logg', \
@@ -98,6 +43,8 @@ cks_stars = cks_stars[cks_cols_to_keep].rename(
     "e_[Fe/H]": "feh_err",
     "e_vsini": "vsini_err"})
 cks_stars['sample'] = ['cks'] * len(cks_stars)
+# re-format star names to be consistent with filenames
+cks_stars.id_starname = [i.replace('KOI-', 'K').replace(' ', '') for i in cks_stars.id_starname]
 
 # rename columns of CKS-cool
 cks_cool_cols_to_keep = ['cps_name', 'lib_obs','Teff', 'u_Teff', 'logg', 'u_logg', \
@@ -114,6 +61,8 @@ cks_cool_stars['sample'] = ['cks-cool'] * len(cks_cool_stars)
 
 # combine samples for training set
 hires_stars = pd.concat([cks_stars, cks_cool_stars], ignore_index=True)
+# re-format obs ids
+hires_stars.obs_id = [i.replace(' ','') for i in hires_stars.obs_id]
 
 # set nan vsini for cool stars to 2±2 km/s
 hires_stars = hires_stars.fillna(
@@ -122,4 +71,46 @@ hires_stars = hires_stars.fillna(
 # save to file
 hires_stars_filename = './data/label_dataframes/hires_stars.csv'
 hires_stars.to_csv(hires_stars_filename)
-print('table with CKS + CKS-cool stars saved to {}'.format(hires_stars_filename))
+print('table with CKS + CKS-cool stars ({} total) saved to {}'.format(
+    len(hires_stars),
+    hires_stars_filename))
+
+# function to run rsync command
+def run_rsync(command):
+    # run the command using pexpect
+    program = pexpect.spawn(command)
+    program.expect("observer@cadence.caltech.edu's password:")
+    program.sendline(password)
+    program.expect(pexpect.EOF)
+
+# copy over CKS stars
+for index, row in hires_stars.iterrows():
+    # filenames for rsync command
+    fits_filename = '{}.fits'.format(row.obs_id)
+    object_name = row.id_starname
+    if os.path.exists('./data/hires-spectra_r/'+object_name+'.fits'):
+        print('{} already in ./data/hires-spectra_r/'.format(object_name))
+        pass
+    else:
+        # write command
+        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/hires-spectra_r/{}.fits".format(
+            fits_filename,
+            object_name)
+        run_rsync(command)
+        print('copied {} to ./data/hires-spectra_r/'.format(object_name))
+
+# copy over Kepler-1656 spectra to test wavelet filtering
+for fits_filename in ['rj351.570.fits', 'rj487.76.fits']:
+    object_name = 'K00367'
+    object_filename = './data/kepler1656_spectra/{}_{}'.format(object_name, fits_filename)
+    if os.path.exists(object_filename):
+        print('{} already in ./data/kepler1656_spectra/'.format(object_name))
+        pass
+    else:
+        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} {}".format(
+            fits_filename,
+            object_filename)
+        run_rsync(command)
+        print('copied {} to ./data/kepler1656_spectra/'.format(object_name))
+
+

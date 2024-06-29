@@ -11,9 +11,10 @@ wt_kwargs = {
 'axis':-1 # axis over which to compute the DWT
 }
 
-# clip size to clip 5% each end of order (in pixels)
-# used to generate training set
-order_clip = 200
+# clip size to clip end of order (in pixels)
+# chosed to be the smallest clip size that ensures 
+# the r chip orders don't overlap
+order_clip = 390
 
 def flux_waverec(flux, wavelet_wavedec, coeff_indices_to_keep):
 	"""
