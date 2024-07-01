@@ -8,7 +8,7 @@ import thecannon as tc
 from cannon_model_diagnostics import *
 
 # define training set labels
-training_labels = ['cks_steff', 'cks_slogg', 'cks_smet','cks_svsini']
+training_labels = ['teff', 'logg', 'feh','vsini']
 
 # Load the table containing the training set labels
 training_set_table = Table.read('./data/label_dataframes/training_labels.csv', format='csv')
@@ -32,10 +32,6 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     filter_type (str): if 'dwt', model is trained on wavelet filtered data.
                        if 'original', model is trained on SpecMatch-Emp output data.
     """
-
-    # path to save model files to, 
-    # should be descriptive of current model to be trained
-    model_fileroot = 'rchip_{}.model'.format(model_suffix)
 
     # determine dataframe that contains training data
     if filter_type=='dwt':
@@ -68,9 +64,9 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     model = tc.CannonModel(training_set, normalized_flux, normalized_ivar,
                            vectorizer=vectorizer)
     # train and store model
-    model_path = './data/cannon_models/rchip_{}/'.format(model_suffix)
+    model_path = './data/cannon_models/rchip/{}/'.format(model_suffix)
     os.mkdir(model_path)
-    model_filename = model_path + model_fileroot
+    model_filename = model_path + 'cannon_model.model'
     model.train()
     print('finished training cannon model')
     model.write(model_filename, include_training_set_spectra=True, overwrite=True)
@@ -87,16 +83,18 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 
 ####### train cannon models with wavelet filters #######
 # all 16 individual orders
-# for order_n in range(1, 17):
-#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+for order_n in range(1, 17):
+    if order_n==9:
+        train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+        train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
 # # all 16 orders combined
 # all_orders_list = np.arange(1,17,1).tolist()
 # train_cannon_model(all_orders_list, 'all_orders_dwt')
 
 # all orders except 11+12 + save training data
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
-train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_dwt', save_training_data=True)
+# no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
+# train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_dwt', save_training_data=True)
 
 ###### train cannon models with original spectra #######
 # all 16 individual orders
@@ -108,8 +106,8 @@ train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_dwt', save_training_d
 # train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
 
 # orders except 11+12, without wavelet filtering
-no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
-train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_original', filter_type='original')
+# no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
+# train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_original', filter_type='original')
 
 
 

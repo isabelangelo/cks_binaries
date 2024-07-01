@@ -36,18 +36,17 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
     	model_suffix (str) : string associated with model to go in filenames
 	"""
 	pc = 'k';markersize=1;alpha_value=0.5
-	labels_to_plot = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
+	labels_to_plot = ['teff', 'logg', 'feh', 'vsini']
 
 	# compute model to validate based on order number
-	model_dir = './data/cannon_models/rchip_{}'.format(model_suffix)
-	model_path = model_dir+'/rchip_{}.model'.format(model_suffix)
-	model_to_validate = tc.CannonModel.read(model_path)
+	model_dir = './data/cannon_models/rchip/{}/'.format(model_suffix)
+	model_to_validate = tc.CannonModel.read(model_dir+'cannon_model.model')
 
 	def compute_cannon_labels():
 		# define training set labels
-		cks_keys = labels_to_plot
+		cks_keys = ['cks_'+i for i in labels_to_plot]
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
-		metric_keys = ['fit_chisq', 'binary_fit_chisq','training_density', 'delta_chisq']
+		metric_keys = ['fit_chisq','training_density']
 		vectorizer = tc.vectorizer.PolynomialVectorizer(cks_keys, 2)
 
 		# bin training data into 5 test sets
@@ -98,19 +97,18 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 					order_numbers, 
 					model_leave1out)
 				spec.fit_single_star()
-				spec.fit_binary()
 				cannon_labels = spec.fit_cannon_labels
 
 				# store data for plot
 				keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
 				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
-						+ [spec.fit_chisq, spec.binary_fit_chisq, spec.training_density, spec.delta_chisq]
+						+ [spec.fit_chisq, spec.training_density]
 				cannon_label_data.append(dict(zip(keys, values)))
 				print(id_starname)
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)
-		cannon_label_path = model_dir+'/cannon_labels.csv'
+		cannon_label_path = model_dir+'cannon_labels.csv'
 		print('saving training set cannon output labels to {}'.format(cannon_label_path))
 		cannon_label_df.to_csv(cannon_label_path)
 		return cannon_label_df
@@ -147,9 +145,9 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 	plt.figure(figsize=(10,17))
 	for i in range(len(labels_to_plot)):
 		plt.subplot(gs[2*i])
-		plot_label_one_to_one(cannon_label_df, labels_to_plot[i][4:])
+		plot_label_one_to_one(cannon_label_df, labels_to_plot[i])
 		plt.subplot(gs[2*i+1])
-		plot_label_difference(cannon_label_df, labels_to_plot[i][4:])
+		plot_label_difference(cannon_label_df, labels_to_plot[i])
 	plt.savefig(figure_path, dpi=300, bbox_inches='tight')
 
 
