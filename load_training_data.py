@@ -15,7 +15,7 @@ def trimmed(df):
 # ============ load literature data ==================================================
 
 # define paths to spectrum files + labels
-original_path = './data/cks-spectra/'
+original_path = './data/cks-spectra_r/'
 shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
 df_path = './data/cannon_training_data'
 label_path = './data/label_dataframes/'
@@ -54,7 +54,7 @@ id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
 k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
-original_w_filename = './data/cks-spectra/cks-k00001_rj122.742.fits' # can be any r chip file
+original_w_filename = './data/cks-spectra_r/K00001.fits' # can be any r chip file
 wav_data = read_hires_fits(original_w_filename).w[:,:-1] # require even number of elements
 wav_data = wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
@@ -64,17 +64,15 @@ print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 # ============ clean training set + write labels to file  =========================================
 
 # load table with CKS properties from CKS website
-cks_stars = pd.read_csv(
-    './data/literature_data/cks_physical_merged_with_fileroots.csv',
-    dtype={'spectrum_fileroot': str}) # retains trailing zeros in spectrum fileroot
-print(len(cks_stars), ' table entries from CKS website')
+cks_stars = pd.read_csv('./data/label_dataframes/cks_stars.csv') 
+print(len(cks_stars), ' table entries from CKS + CKS-cool')
 
 # remove duplicate targets
-cks_stars = cks_stars.drop_duplicates('id_kic')
-print(len(cks_stars), 'remaining after removing duplicate entries for multi-planet hosts')
+cks_stars = cks_stars.drop_duplicates('id_starname')
+print(len(cks_stars), 'remaining after removing duplicate entries')
 
 # require finite training set labels
-training_set_labels = ['cks_steff', 'cks_slogg', 'cks_smet', 'cks_svsini']
+training_set_labels = ['teff', 'logg', 'feh', 'vsini']
 cks_stars = cks_stars.dropna(subset=training_set_labels)
 print(len(cks_stars), 'with finite training set labels')
 
@@ -84,11 +82,8 @@ for i in range(len(cks_stars)):
 
     # load file data
     row = cks_stars.iloc[i]
-    row_id_starname = row.id_starname.replace('K','k')
-    row_spectrum_fileroot = str(row.spectrum_fileroot)
-
-    filename = original_path + 'cks-{}_rj{}.fits'.format(
-        row_id_starname, row_spectrum_fileroot)
+    filename = original_path + '{}.fits'.format(
+        row.id_starname)
     target = read_hires_fits(filename)
 
     # compute average pixel error, remove if snr<20
@@ -151,10 +146,8 @@ def single_order_training_data(order_idx, filter_wavelets=True):
 
         # load file data
         row = cks_stars.iloc[i]
-        row_id_starname = row.id_starname.replace('K','k')
-        row_spectrum_fileroot = str(row.spectrum_fileroot)
-        filename = shifted_resampled_path + 'order{}/cks-{}_rj{}.fits'.format(
-            order_n,row_id_starname, row_spectrum_fileroot)
+        filename = shifted_resampled_path + 'order{}/{}.fits'.format(
+            order_n, row.id_starname)
         id_starname_list.append(row.id_starname) # save star name for column
 
         # load spectrum from file
