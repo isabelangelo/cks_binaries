@@ -2,6 +2,8 @@ This file describes the worklow
 
 (1) store_cks_fileroots:
 - takes cks spectra from cks-spectra/ directory and stores paths to each target in cks_physical_merged.csv so that both labels and spectra can be easily referenced. Creates table cks_physical_merged_with_fileroots.csv.
+*note: this code uses the cks-spectra/ directory downloaded from the CKS website, and only really needs to be 
+run once unless the training sample changes.
 
 (2) rsync_hires_data:
 - copies spectra from CKS and CKS-cool from cadence to local machine.
@@ -17,6 +19,10 @@ This file describes the worklow
 - this code is customizable to allow training models using different orders/wavelet filtered or unfiltered data, and has the option to save training data to .csv files.
 - there are also some lines of code at the end to train a number of models that I use in my analysis.
 
-(5) spectrum.py
+(5) load_known_binaries:
+- generates dataframes with flux, sigma arrays for known binaries
+- user inputs HIRES orders to load flux data for
+
+(6) spectrum.py
 - creates Spectrum object that fits a model to a given spectrum and reports fit metrics
 - this code is customizable to allow fitting to different orders/wavelet filtered or unfiltered data
