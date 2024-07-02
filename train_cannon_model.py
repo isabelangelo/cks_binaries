@@ -83,10 +83,15 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 
 ####### train cannon models with wavelet filters #######
 # all 16 individual orders
-for order_n in range(1, 17):
-    if order_n==9:
-        train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
-        train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
+# for order_n in range(1, 17):
+#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+#     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
+
+
+# all orders except 2, 12, with + without wavelet filtering
+order_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 12]]
+train_cannon_model(order_list, 'orders_2.12_omitted_dwt', save_training_data=True)
+train_cannon_model(order_list, 'orders_2.12_omitted_original', filter_type='original')
 
 # # all 16 orders combined
 # all_orders_list = np.arange(1,17,1).tolist()

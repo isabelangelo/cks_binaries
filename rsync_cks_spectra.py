@@ -36,12 +36,14 @@ cks_main_stars = cks_main_stars[cks_cols_to_keep].rename(
     columns={
     "Name": "id_starname", 
     "Obs": "obs_id",
-    "Teff": "teff",
-    "e_Teff": "teff_err", 
-    "e_logg": "logg_err", 
-    "[Fe/H]": "feh",
-    "e_[Fe/H]": "feh_err",
-    "e_vsini": "vsini_err"})
+    "Teff": "cks_teff",
+    "e_Teff": "cks_teff_err",
+    "logg":"cks_logg",
+    "e_logg": "cks_logg_err", 
+    "[Fe/H]": "cks_feh",
+    "e_[Fe/H]": "cks_feh_err",
+    "vsini": "cks_vsini",
+    "e_vsini": "cks_vsini_err"})
 cks_main_stars['sample'] = ['cks'] * len(cks_main_stars)
 # re-format star names to be consistent with filenames
 cks_main_stars.id_starname = [i.replace('KOI-', 'K').replace(' ', '') for i in cks_main_stars.id_starname]
@@ -53,10 +55,13 @@ cks_cool_stars = cks_cool_stars[cks_cool_cols_to_keep].rename(
     columns={
     "cps_name": "id_starname", 
     "lib_obs": "obs_id",
-    "Teff": "teff",
-    "u_Teff": "teff_err", 
-    "u_logg": "logg_err",
-    "u_feh": "feh_err"})
+    "Teff": "cks_teff",
+    "u_Teff": "cks_teff_err",
+    "logg": "cks_logg_err", 
+    "u_logg": "cks_logg_err",
+    "feh": "cks_feh"
+    "u_feh": "cks_feh_err"
+    "vsini": "cks_vsini"})
 cks_cool_stars['sample'] = ['cks-cool'] * len(cks_cool_stars)
 
 # combine samples for training set

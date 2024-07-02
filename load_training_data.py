@@ -67,12 +67,16 @@ print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 cks_stars = pd.read_csv('./data/label_dataframes/cks_stars.csv') 
 print(len(cks_stars), ' table entries from CKS + CKS-cool')
 
+# temporary: remove stars from cks-cool
+cks_stars = cks_stars.query('cks_teff>=4200')
+print(len(cks_stars), ' after removing stars with Teff<4200 (TEMPORARY)')
+
 # remove duplicate targets
 cks_stars = cks_stars.drop_duplicates('id_starname')
 print(len(cks_stars), 'remaining after removing duplicate entries')
 
 # require finite training set labels
-training_set_labels = ['teff', 'logg', 'feh', 'vsini']
+training_set_labels = ['cks_teff', 'cks_logg', 'cks_feh', 'cks_vsini']
 cks_stars = cks_stars.dropna(subset=training_set_labels)
 print(len(cks_stars), 'with finite training set labels')
 
