@@ -34,10 +34,12 @@ k16_tbl = pd.concat([
     load_kraus_table('Kraus2016_Table3.csv'), # NRM
     load_kraus_table('Kraus2016_Table5.csv'),  # aperture photometry
     load_kraus_table('Kraus2016_Table6.csv')]) # multi-PSF fitting
+
 # query targets where any separation within reported uncertainties
 # falls within hires slit width of 0.8arcsec
 hires_slit_width = 800 # 0.8arcsec = 800mas
 k16_tbl = k16_tbl.query('sep_mas - sep_err < @hires_slit_width')
+
 # add column with starnames to match training set table
 k16_tbl['id_starname'] = k16_tbl['KOI'].str.replace('KOI-', 'K0')
 
@@ -50,6 +52,7 @@ colnames_to_keep = ['KOI','Teff_A','Teff_A_err','Teff_B','Teff_B_err', 'FB_over_
 k15_tbl = pd.read_csv('./data/literature_data/Kolbl2015_Table9.csv', 
     delimiter=' ', skiprows=1, names=colnames)[colnames_to_keep]
 id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
+
 # add column with starnames to match training set table
 k15_tbl['id_starname'] = id_starnames
 
@@ -114,6 +117,7 @@ print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 # remove KOI-2864, which seems to have some RV pipeline processing errors
 cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
+
 
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)

@@ -8,6 +8,9 @@ from scipy import stats
 from scipy.optimize import leastsq
 from spectrum_utils import *
 
+# for testing purposes
+import time
+
 class Spectrum(object):
     """
     HIRES Spectrum object
@@ -103,36 +106,35 @@ class Spectrum(object):
         # this speeds up interpolation step in shift()
         wav_idx = [np.nonzero(np.isin(self.wav, wav_order))[0] for wav_order in wav_data]
 
+        # pixel weights for chi-squared calculation
+        weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
+
         # store names of binary parameter keys
         # to access when calling cannon model
         cannon_param1_keys = ['teff1','logg1','feh1','vsini1','rv1']
         cannon_param2_keys = ['teff2','logg2','feh2','vsini2','rv2']
-
-        # compute weights for chisq calcultion
-        weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
-
+        
         # kwgsfor local optimizer (l-bfgs-b)
         lbfgsb_options = {
             'maxiter': 100,  # Maximum number of iterations
-            'ftol': 1e-8,     # Function value tolerance
+            'ftol': 1e-7,     # Function value tolerance
             'gtol': 1e-5,     # Gradient norm tolerance
             'eps': 1e-8       # Step size for numerical gradient approximation
         }
 
-        def shift(wav, flux, rv_shift):
-            """Shift flux according to input RV"""
-            delta_wav = wav * rv_shift/speed_of_light_kms
-            flux_shifted = np.empty(flux.shape)
-            for i in range(len(wav_data)):
-                w_order = wav_data[i]
-                idx = wav_idx[i]
-                if len(idx)>0:
-                    order_flux_shifted = np.interp(
-                        wav[idx], 
-                        wav[idx] + delta_wav[idx], 
-                        flux[idx])
-                    flux_shifted[idx] = order_flux_shifted
-            return flux_shifted
+        # initial conditions of binary set by single star
+        # for labels other than Teff
+        logg_init, feh_init, vsini_init = self.fit_cannon_labels[1:]
+
+        # define minima and maxima
+        # based on model interpolation bounds
+        # this can be done outside
+        label_arr = self.cannon_model.training_set_labels.T
+        teff_min, teff_max = label_arr[0].min(), label_arr[0].max()
+        logg_min, logg_max = label_arr[1].min(), label_arr[1].max()
+        feh_min, feh_max = label_arr[2].min(), label_arr[2].max()
+        vsini_min, vsini_max = label_arr[3].min(), label_arr[3].max()
+        rv_min, rv_max = -10, 10
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
             """Calculate binary model associated with set of parameters
@@ -146,8 +148,10 @@ class Spectrum(object):
             flux2 = cannon_model(cannon_param2[:-1])
 
             # shift flux1, flux2 according to drv
-            flux1_shifted = shift(wav, flux1, cannon_param1[-1])
-            flux2_shifted = shift(wav, flux2, cannon_param2[-1])
+            delta_w1 = wav * cannon_param1[-1]/speed_of_light_kms
+            delta_w2 = wav * cannon_param2[-1]/speed_of_light_kms    
+            flux1_shifted = np.interp(wav, wav + delta_w1, flux1)
+            flux2_shifted = np.interp(wav, wav + delta_w2, flux2)
 
             # compute weighted sum of primary, secondary
             model = W1*flux1_shifted + W2*flux2_shifted
@@ -172,50 +176,51 @@ class Spectrum(object):
             # compute chisq
             model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
             resid = weights * (model - flux)
-
+            print(cannon_param1[0], cannon_param2[0], np.sum(resid**2).round(0))
             return resid
-        
-        # fit single star model to inform initial conditions
-        #self.fit_single_star()
-        logg_init, feh_init, vsini_init = self.fit_cannon_labels[1:]
 
         # perform coarse brute search for ballpark teff1, teff2
         brute_params = lmfit.Parameters()
-        brute_params.add('teff1', min=4500, max=6500, brute_step=100)
+        brute_params.add('teff1', min=teff_min, max=teff_max, brute_step=100)
         brute_params.add('logg1', value=logg_init, vary=False)
         brute_params.add('feh1', value=feh_init, vary=False)
         brute_params.add('vsini1', value=vsini_init, vary=False)
         brute_params.add('rv1', value=0, vary=False)
-        brute_params.add('teff2', min=4500, max=6500, brute_step=100)
+        brute_params.add('teff2', min=teff_min, max=teff_max, brute_step=100)
         brute_params.add('logg2', value=logg_init, vary=False)
         brute_params.add('feh2', value=feh_init, vary=False)
         brute_params.add('vsini2', value=vsini_init, vary=False)
         brute_params.add('rv2', value=0, vary=False)
         chisq_args = (self.wav, self.flux, self.cannon_model)
+        t0_brute = time.time()
         op_brute = lmfit.minimize(residuals, brute_params, args=chisq_args, 
             method='brute', calc_covar=False)
+        print('time for brute search: {} seconds'.format(time.time()-t0_brute))
         brute_teff = (op_brute.params['teff1'].value, op_brute.params['teff2'].value)
+        teff1_init, teff2_init = max(brute_teff), min(brute_teff)
         
         # perform localized search at minimum from brute search
         local_params = lmfit.Parameters()
-        local_params.add('teff1', min=4500, max=6500, value=max(brute_teff), vary=True)
-        local_params.add('logg1', min=2.8, max=5, value=logg_init, vary=True)
-        local_params.add('feh1', min=-1, max=1, value=feh_init, vary=True)
-        local_params.add('vsini1', min=0, max=30, value=vsini_init, vary=True)
-        local_params.add('rv1', min=-10, max=10, value=0, vary=True)    
-        local_params.add('teff2', min=4500, max=6500, value=min(brute_teff), vary=True)
-        local_params.add('logg2', min=2.8, max=5, value=logg_init, vary=True)
-        local_params.add('feh2', min=-1, max=1, value=feh_init, vary=True)
-        local_params.add('vsini2', min=0, max=30, value=vsini_init, vary=True)
-        local_params.add('rv2', min=-10, max=10, value=0, vary=True)
+        local_params.add('teff1', min=teff_min, max=teff_max, value=teff1_init, vary=True)
+        local_params.add('logg1', min=logg_min, max=logg_max, value=logg_init, vary=True)
+        local_params.add('feh1', min=feh_min, max=feh_max, value=feh_init, vary=True)
+        local_params.add('vsini1', min=vsini_min, max=vsini_max, value=vsini_init, vary=True)
+        local_params.add('rv1', min=rv_min, max=rv_max, value=0, vary=True)    
+        local_params.add('teff2', min=teff_min, max=teff_max, value=teff2_init, vary=True)
+        local_params.add('logg2', min=logg_min, max=logg_max, value=logg_init, vary=True)
+        local_params.add('feh2', min=feh_min, max=feh_max, value=feh_init, vary=True)
+        local_params.add('vsini2', min=vsini_min, max=vsini_max, value=vsini_init, vary=True)
+        local_params.add('rv2', min=rv_min, max=rv_max, value=0, vary=True)
+        t0_local = time.time()
         op_lbfgsb = lmfit.minimize(residuals, local_params, args=chisq_args, 
             method='lbfgsb', calc_covar=False, options=lbfgsb_options)
+        print('time for local search: {} seconds'.format(time.time()-t0_local))
         
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = list(op_lbfgsb.params.valuesdict().values())
         self.binary_model_flux = binary_model(
             self.binary_fit_cannon_labels[:5], 
-            self.binary_fit_cannon_labels[:-5],
+            self.binary_fit_cannon_labels[-5:],
             self.wav, 
             self.cannon_model)
         self.binary_model_residuals = self.flux - self.binary_model_flux
@@ -237,6 +242,7 @@ class Spectrum(object):
         plt.plot(self.wav, self.model_residuals-1, 'k-')
         plt.xlim(self.wav[0],self.wav[-1])
         plt.ylabel('normalized flux')
+        plt.xticks([])
 
         plt.subplot(212)
         plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
@@ -277,27 +283,35 @@ class Spectrum(object):
         plt.xlabel('wavelength (angstrom)')
         plt.show()
 
-# test plots
-# import pandas as pd
-# import thecannon as tc
-# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-# model = tc.CannonModel.read('./data/cannon_models/rchip_orders_11-12_omitted_dwt/rchip_orders_11-12_omitted_dwt.model')
-# order_numbers = [i for i in range(1,17) if i not in (11,12)]
-# spec = Spectrum(
-#     binary_flux['K00289'], 
-#     binary_sigma['K00289'],
-#     order_numbers,
-#     model)
-# spec.fit_single_star()
-# spec.fit_binary()
-# print(spec.binary_fit_chisq)
-# print(binary_fit_chisq)
-# Spectrum(
-#     binary_flux['K00291'], 
-#     binary_sigma['K00291'],
-#     order_numbers,
-#     model).plot_binary()
+# optimizer test
+# fit binary to KOI-291 (q=0.7) and time it
+# add print statements to check optimizers.
+# maybe scipy l-bfgs-b is faster than lmfit?
+
+# first problem: teff1 and teff2 are flipped, which happens during optimization
+# so let me bind them to within 200 of what they found
+# but actually that wouldn't help in this case
+# maybe I do need an inf resid for teff2<teff1
+# second problem: the optimzier spends a lot of time within 1 of the true chisq 26018, 
+# maybe I can change the ftol
+
+
+
+import pandas as pd
+import thecannon as tc
+binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+model = tc.CannonModel.read('./data/cannon_models/rchip/orders_2.12_omitted_dwt/cannon_model.model')
+order_numbers = [i for i in range(1,17) if i not in (11,12)]
+spec = Spectrum(
+    binary_flux['K00289'], 
+    binary_sigma['K00289'],
+    order_numbers,
+    model)
+spec.fit_single_star()
+t0=time.time()
+spec.fit_binary()
+print('total time = {} seconds'.format(time.time()-t0))
 
 
 
