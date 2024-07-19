@@ -176,7 +176,6 @@ class Spectrum(object):
             # compute chisq
             model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
             resid = weights * (model - flux)
-            print(cannon_param1[0], cannon_param2[0], np.sum(resid**2).round(0))
             return resid
 
         # perform coarse brute search for ballpark teff1, teff2
@@ -288,30 +287,19 @@ class Spectrum(object):
 # add print statements to check optimizers.
 # maybe scipy l-bfgs-b is faster than lmfit?
 
-# first problem: teff1 and teff2 are flipped, which happens during optimization
-# so let me bind them to within 200 of what they found
-# but actually that wouldn't help in this case
-# maybe I do need an inf resid for teff2<teff1
-# second problem: the optimzier spends a lot of time within 1 of the true chisq 26018, 
-# maybe I can change the ftol
-
-
-
-import pandas as pd
-import thecannon as tc
-binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-model = tc.CannonModel.read('./data/cannon_models/rchip/orders_2.12_omitted_dwt/cannon_model.model')
-order_numbers = [i for i in range(1,17) if i not in (11,12)]
-spec = Spectrum(
-    binary_flux['K00289'], 
-    binary_sigma['K00289'],
-    order_numbers,
-    model)
-spec.fit_single_star()
-t0=time.time()
-spec.fit_binary()
-print('total time = {} seconds'.format(time.time()-t0))
-
-
+# import pandas as pd
+# import thecannon as tc
+# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+# model = tc.CannonModel.read('./data/cannon_models/rchip/orders_2.12_omitted_dwt/cannon_model.model')
+# order_numbers = [i for i in range(1,17) if i not in (11,12)]
+# spec = Spectrum(
+#     binary_flux['K00289'], 
+#     binary_sigma['K00289'],
+#     order_numbers,
+#     model)
+# spec.fit_single_star()
+# t0=time.time()
+# spec.fit_binary()
+# print('total time = {} seconds'.format(time.time()-t0))
 

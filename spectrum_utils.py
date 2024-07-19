@@ -6,7 +6,7 @@ from astropy.io import fits
 from astropy.modeling.models import BlackBody
 from scipy.interpolate import interp1d
 
-__all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "speed_of_light_kms",
+__all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass", "speed_of_light_kms",
             "wav_data", "sodium_wmin", "sodium_wmax", "telluric_wmin", "telluric_wmax"]
 
 # load wavelength data
@@ -35,6 +35,7 @@ mass_pm2013 = np.array([float(i) for i in pm2013['Msun']])
 
 valid_mass = ~np.isnan(mass_pm2013)
 teff2radius = interp1d(teff_pm2013[valid_mass], R_pm2013[valid_mass])
+teff2mass = interp1d(teff_pm2013[valid_mass], mass_pm2013[valid_mass])
 
 # function to compute flux weights 
 # of primary, secondary in binary model
@@ -43,7 +44,6 @@ def flux_weights(teff1, teff2, wav):
     Returns un-normalized relative fluxes,
     based on blackbody curve * R^2
     """
-    
     # blackbody functions
     bb1 = BlackBody(temperature=teff1*u.K)
     bb2 = BlackBody(temperature=teff2*u.K)

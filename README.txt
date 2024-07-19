@@ -1,11 +1,6 @@
 This file describes the worklow
 
-(1) store_cks_fileroots:
-- takes cks spectra from cks-spectra/ directory and stores paths to each target in cks_physical_merged.csv so that both labels and spectra can be easily referenced. Creates table cks_physical_merged_with_fileroots.csv.
-*note: this code uses the cks-spectra/ directory downloaded from the CKS website, and only really needs to be 
-run once unless the training sample changes.
-
-(2) rsync_hires_data:
+(1) rsync_cks_spectra:
 - copies spectra from CKS and CKS-cool from cadence to local machine.
 
 (3) load_training_data:
@@ -26,3 +21,5 @@ run once unless the training sample changes.
 (6) spectrum.py
 - creates Spectrum object that fits a model to a given spectrum and reports fit metrics
 - this code is customizable to allow fitting to different orders/wavelet filtered or unfiltered data
+
+question: do I need store_cks_fileroots anymore? in fact maybe it's deleted?
