@@ -57,10 +57,10 @@ cks_cool_stars = cks_cool_stars[cks_cool_cols_to_keep].rename(
     "lib_obs": "obs_id",
     "Teff": "cks_teff",
     "u_Teff": "cks_teff_err",
-    "logg": "cks_logg_err", 
+    "logg": "cks_logg", 
     "u_logg": "cks_logg_err",
-    "feh": "cks_feh"
-    "u_feh": "cks_feh_err"
+    "feh": "cks_feh",
+    "u_feh": "cks_feh_err",
     "vsini": "cks_vsini"})
 cks_cool_stars['sample'] = ['cks-cool'] * len(cks_cool_stars)
 
@@ -91,21 +91,21 @@ def run_rsync(command):
 # copy over CKS stars
 for index, row in cks_stars.iterrows():
     # filenames for rsync command
-    fits_filename = '{}.fits'.format(row.obs_id)
+    fits_filename = '{}.fits'.format(row.obs_id.replace('rj','ij'))
     object_name = row.id_starname
-    if os.path.exists('./data/cks-spectra_r/'+object_name+'.fits'):
-        print('{} already in ./data/cks-spectra_r/'.format(object_name))
+    if os.path.exists('./data/cks-spectra_i/'+object_name+'.fits'):
+        print('{} already in ./data/cks-spectra_i/'.format(object_name))
         pass
     else:
         # write command
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/cks-spectra_r/{}.fits".format(
+        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/cks-spectra_i/{}.fits".format(
             fits_filename,
             object_name)
         run_rsync(command)
-        print('copied {} to ./data/cks-spectra_r/'.format(object_name))
+        print('copied {} to ./data/cks-spectra_i/'.format(object_name))
 
 # copy over Kepler-1656 spectra to test wavelet filtering
-for fits_filename in ['rj351.570.fits', 'rj487.76.fits']:
+for fits_filename in ['ij351.570.fits', 'ij487.76.fits']:
     object_name = 'K00367'
     object_filename = './data/kepler1656_spectra/{}_{}'.format(object_name, fits_filename)
     if os.path.exists(object_filename):
@@ -117,5 +117,7 @@ for fits_filename in ['rj351.570.fits', 'rj487.76.fits']:
             object_filename)
         run_rsync(command)
         print('copied {} to ./data/kepler1656_spectra/'.format(object_name))
+
+
 
 

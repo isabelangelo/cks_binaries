@@ -8,7 +8,7 @@ import thecannon as tc
 from cannon_model_diagnostics import *
 
 # define training set labels
-training_labels = ['teff', 'logg', 'feh','vsini']
+training_labels = ['cks_teff', 'cks_logg', 'cks_feh','cks_vsini']
 
 # Load the table containing the training set labels
 training_set_table = Table.read('./data/label_dataframes/training_labels.csv', format='csv')
@@ -63,8 +63,9 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
     # Create the model that will run in parallel using all available cores.
     model = tc.CannonModel(training_set, normalized_flux, normalized_ivar,
                            vectorizer=vectorizer)
+
     # train and store model
-    model_path = './data/cannon_models/rchip/{}/'.format(model_suffix)
+    model_path = './data/cannon_models/ichip/{}/'.format(model_suffix)
     os.mkdir(model_path)
     model_filename = model_path + 'cannon_model.model'
     model.train()
@@ -82,19 +83,13 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
         model_suffix)
 
 ####### train cannon models with wavelet filters #######
-# all 16 individual orders
-# for order_n in range(1, 17):
-#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
-#     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
+# all individual orders
+for order_n in range(2, 3):
+    train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+    train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
-
-# all orders except 2, 12, with + without wavelet filtering
-order_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 12]]
-train_cannon_model(order_list, 'orders_2.12_omitted_dwt', save_training_data=True)
-train_cannon_model(order_list, 'orders_2.12_omitted_original', filter_type='original')
-
-# # all 16 orders combined
-# all_orders_list = np.arange(1,17,1).tolist()
+# all orders combined
+# all_orders_list = np.arange(1,11,1).tolist()
 # train_cannon_model(all_orders_list, 'all_orders_dwt')
 
 # all orders except 11+12 + save training data
@@ -102,12 +97,12 @@ train_cannon_model(order_list, 'orders_2.12_omitted_original', filter_type='orig
 # train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_dwt', save_training_data=True)
 
 ###### train cannon models with original spectra #######
-# all 16 individual orders
-# for order_n in range(1, 17):
+# all individual orders
+# for order_n in range(1, 11):
 #     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
-# # all 16 orders combined
-# all_orders_list = np.arange(1,17,1).tolist()
+# all orders combined
+# all_orders_list = np.arange(1,11,1).tolist()
 # train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
 
 # orders except 11+12, without wavelet filtering

@@ -2,6 +2,12 @@ This file describes the worklow
 
 (1) rsync_cks_spectra:
 - copies spectra from CKS and CKS-cool from cadence to local machine.
+- saves CKS spectra to ./data/cks-spectra_{chip}, where chip=r or i
+
+(2) shift_and_register_cks_spectra:
+- uses SpecMatch-emp to shift spectra into the rest frame and register them onto a uniform HIRES wavelength scale.
+- saved shifted spectra to ./data/cks-spectra_shifted_resampled_{chip}
+- saves orders to individual files so that we can treat them individually in our analysis
 
 (3) load_training_data:
 - loads the CKS flux + labels and filters them to assemble a training set. This script also stores original fluxes to train a model for comparison and demonstrate improvement from wavelet-based filtering.

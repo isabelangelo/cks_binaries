@@ -12,9 +12,9 @@ wt_kwargs = {
 }
 
 # clip size to clip end of order (in pixels)
-# chosed to be the smallest clip size that ensures 
-# the r chip orders don't overlap
-order_clip = 390
+# set to 390 for r chip to ensure orders don't overlap
+# set to 200 for i chip, correpsonding to 5% on each side
+order_clip = 200
 
 def flux_waverec(flux, wavelet_wavedec, coeff_indices_to_keep):
 	"""

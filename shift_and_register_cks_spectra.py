@@ -4,12 +4,13 @@ and rescale them onto the original HIRES wavelength scale.
 """
 from specmatchemp.spectrum import read_hires_fits
 from specmatchemp.specmatch import SpecMatch
+from specmatchemp import SPECMATCHDIR
 import specmatchemp.library
 import glob
 import os
 
 # paths to store shifted spectra
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_r'
+shifted_resampled_path = './data/cks-spectra_shifted_resampled_i'
 kepler1656_path = './data/kepler1656_spectra'
 
 # load specmatch library for reference spectra
@@ -18,7 +19,9 @@ lib = specmatchemp.library.read_hdf()
 def shift_and_save_orders(path, filename):
     
     # load spectrum + create SpecMatch object
-    KOI_spectrum = read_hires_fits(filename)
+    KOI_spectrum = read_hires_fits(
+        filename, 
+        maskfile = os.path.join(SPECMATCHDIR, 'hires_telluric_mask.csv'))
     sm_KOI = SpecMatch(KOI_spectrum, lib)
     w_to_resample_to = sm_KOI.target_unshifted.w
     
@@ -39,7 +42,7 @@ def shift_and_save_orders(path, filename):
         rescaled_order.to_fits(shifted_resampled_filename)
 
 # create directories for the different orders
-for order_idx in range(16):
+for order_idx in range(10):
     order_n = order_idx+1 # order numbers are not zero-indexed
     order_path = '{}/order{}'.format(shifted_resampled_path, order_n)
     order_path_kepler1656 = '{}/order{}'.format(kepler1656_path, order_n)
@@ -52,7 +55,7 @@ for order_idx in range(16):
 
 # iterate over CKS spectra
 print('shifting + registering training set spectra')
-spectrum_filenames = glob.glob('./data/cks-spectra_r/*.fits')
+spectrum_filenames = glob.glob('./data/cks-spectra_i/*.fits')
 for filename in spectrum_filenames:
     shift_and_save_orders(shifted_resampled_path, filename)
 

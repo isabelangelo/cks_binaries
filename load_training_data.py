@@ -15,8 +15,8 @@ def trimmed(df):
 # ============ load literature data ==================================================
 
 # define paths to spectrum files + labels
-original_path = './data/cks-spectra_r/'
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
+original_path = './data/cks-spectra_i/'
+shifted_resampled_path = './data/cks-spectra_shifted_resampled_i/'
 df_path = './data/cannon_training_data'
 label_path = './data/label_dataframes/'
 
@@ -57,8 +57,8 @@ id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
 k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
-original_w_filename = './data/cks-spectra_r/K00001.fits' # can be any r chip file
-wav_data = read_hires_fits(original_w_filename).w[:,:-1] # require even number of elements
+original_w_file = read_hires_fits('./data/cks-spectra_i/K00001.fits') # can be any i chip file
+wav_data = orginal_wav_file.w[:,:-1] # require even number of elements
 wav_data = wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 fits.HDUList([fits.PrimaryHDU(wav_data)]).writeto(reference_w_filename, overwrite=True)
@@ -181,7 +181,7 @@ def single_order_training_data(order_idx, filter_wavelets=True):
 # write wavelet filtered training set flux, sigma to files
 flux_df_dwt = pd.DataFrame()
 sigma_df_dwt = pd.DataFrame()
-for order_idx in range(0, 16):
+for order_idx in range(0, 10):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx)
     flux_df_dwt = pd.concat([flux_df_dwt, flux_df_n])
     sigma_df_dwt = pd.concat([sigma_df_dwt, sigma_df_n])
@@ -192,7 +192,7 @@ print('wavelet-filtered training flux and sigma saved to .csv files')
 # write original training set flux, sigma to files
 flux_df_original = pd.DataFrame()
 sigma_df_original = pd.DataFrame()
-for order_idx in range(0, 16):
+for order_idx in range(0, 10):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx, filter_wavelets=False)
     flux_df_original = pd.concat([flux_df_original, flux_df_n])
     sigma_df_original = pd.concat([sigma_df_original, sigma_df_n])

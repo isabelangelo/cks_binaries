@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import astropy.units as u
@@ -5,19 +6,38 @@ import astropy.constants as c
 from astropy.io import fits
 from astropy.modeling.models import BlackBody
 from scipy.interpolate import interp1d
+from specmatchemp.spectrum import read_hires_fits
+from specmatchemp import SPECMATCHDIR
 
-__all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass", "speed_of_light_kms",
-            "wav_data", "sodium_wmin", "sodium_wmax", "telluric_wmin", "telluric_wmax"]
+__all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass", 
+            "speed_of_light_kms", "wav_data", "mask_table_cut"]
 
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 wav_data = fits.open(reference_w_filename)[0].data
+original_wav_data = read_hires_fits('./data/cks-spectra_i/K00001.fits').w # can be any i chip file
+mask_table = pd.read_csv(os.path.join(SPECMATCHDIR, 'hires_telluric_mask.csv'))
 
-# define wavelength limits for masks
-sodium_wmin, sodium_wmax = 5889, 5897
-max_v_shift = 30*u.km/u.s 
-telluric_wmin = (6270*u.angstrom*(1-max_v_shift/c.c)).value
-telluric_wmax = (6310*u.angstrom*(1+max_v_shift/c.c)).value
+# compute wavelength limits for masks
+mask_table_cut = mask_table.query("chip == 'ij'")
+max_v_shift = 30*u.km/u.s # padding to account for RV shifts
+minw, maxw = [], []
+for idx, row in mask_table_cut.iterrows():
+    w_order = original_wav_data[row.order]
+    # calculate minimum wavelength + padding for RV shift
+    minw_idx = np.floor(w_order[row.minpix])
+    minw_idx = (minw_idx*u.angstrom*(1-max_v_shift/c.c)).value
+    minw.append(minw_idx)
+    # calculate maximum wavelength + padding for RV shift
+    if row.maxpix==4021:
+        maxw_idx = np.ceil(w_order[-1])
+    else:
+        maxw_idx = np.ceil(w_order[row.maxpix])
+    maxw_idx = (maxw_idx*u.angstrom*(1+max_v_shift/c.c)).value
+    maxw.append(maxw_idx)
+# save to table
+mask_table_cut.insert(4, 'minw', minw)
+mask_table_cut.insert(5, 'maxw', maxw)
 
 # initial Teff values for binary model optimizer
 teff_grid = np.arange(4000,10000,2000)

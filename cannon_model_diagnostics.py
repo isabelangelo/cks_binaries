@@ -39,7 +39,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 	labels_to_plot = ['teff', 'logg', 'feh', 'vsini']
 
 	# compute model to validate based on order number
-	model_dir = './data/cannon_models/rchip/{}/'.format(model_suffix)
+	model_dir = './data/cannon_models/ichip/{}/'.format(model_suffix)
 	model_to_validate = tc.CannonModel.read(model_dir+'cannon_model.model')
 
 	def compute_cannon_labels():
