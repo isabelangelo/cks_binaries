@@ -21,7 +21,7 @@ print(len(cks_main_stars), ' after removing KOI-02864 due to processing errors')
 
 # table with CKS-cool stars
 lib = specmatchemp.library.read_hdf()
-min_teff = 3100 # corresponding to q=0.2 for Sun-like star
+min_teff = 3300 # secondary with >1% flux contribution
 max_teff = cks_main_stars['Teff'].min()
 cks_cool_stars = lib.library_params.query('@min_teff<Teff & Teff<@max_teff')
 print(len(cks_cool_stars), 'stars from CKS-cool')
@@ -91,32 +91,35 @@ def run_rsync(command):
 # copy over CKS stars
 for index, row in cks_stars.iterrows():
     # filenames for rsync command
-    fits_filename = '{}.fits'.format(row.obs_id.replace('rj','ij'))
-    object_name = row.id_starname
-    if os.path.exists('./data/cks-spectra_i/'+object_name+'.fits'):
-        print('{} already in ./data/cks-spectra_i/'.format(object_name))
-        pass
-    else:
-        # write command
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/cks-spectra_i/{}.fits".format(
-            fits_filename,
-            object_name)
-        run_rsync(command)
-        print('copied {} to ./data/cks-spectra_i/'.format(object_name))
+    obs_ids = [row.obs_id.replace('rj','bj'), row.obs_id, row.obs_id.replace('rj','ij')]
+    for obs_id in obs_ids:
+        obs_filename = obs_id+'.fits'
+        if os.path.exists('./data/cks-spectra/'+obs_filename):
+            print('{} already in ./data/cks-spectra/'.format(obs_filename))
+            pass
+        else:
+            # write command
+            command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/cks-spectra/{}".format(
+                obs_filename,
+                obs_filename)
+            run_rsync(command)
+    print('copied {} b,r,i chip spectra to ./data/cks-spectra/'.format(row.id_starname))
 
 # copy over Kepler-1656 spectra to test wavelet filtering
-for fits_filename in ['ij351.570.fits', 'ij487.76.fits']:
-    object_name = 'K00367'
-    object_filename = './data/kepler1656_spectra/{}_{}'.format(object_name, fits_filename)
-    if os.path.exists(object_filename):
-        print('{} already in ./data/kepler1656_spectra/'.format(object_name))
-        pass
-    else:
-        command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} {}".format(
-            fits_filename,
-            object_filename)
-        run_rsync(command)
-        print('copied {} to ./data/kepler1656_spectra/'.format(object_name))
+for obs_n in ['rj351.570', 'rj487.76']:
+    obs_ids = [obs_n.replace('rj','bj'), obs_n, obs_n.replace('rj','ij')]
+    for obs_id in obs_ids:
+        obs_filename = obs_id+'.fits'
+        if os.path.exists('./data/kepler1656_spectra/'+obs_filename):
+            print('{} already in ./data/kepler1656-spectra/'.format(obs_filename))
+            pass
+        else:
+            # write command
+            command = "rsync observer@cadence.caltech.edu:/mir3/iodfitsdb/{} ./data/kepler1656-spectra/{}".format(
+                obs_filename,
+                obs_filename)
+            run_rsync(command)
+    print('copied Kepler-1656 b,r,i chip spectra to ./data/kepler1656-spectra/')
 
 
 
