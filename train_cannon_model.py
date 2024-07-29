@@ -84,7 +84,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 
 ####### train cannon models with wavelet filters #######
 # all individual orders
-for order_n in range(2, 3):
+for order_n in range(3, 5):
     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 

@@ -15,15 +15,16 @@ __all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass",
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 wav_data = fits.open(reference_w_filename)[0].data
-original_wav_data = read_hires_fits('./data/cks-spectra_i/K00001.fits').w # can be any i chip file
+original_wav_data = read_hires_fits('./data/cks-spectra/ij122.742.fits').w # KOI-1 i chip file
 mask_table = pd.read_csv(os.path.join(SPECMATCHDIR, 'hires_telluric_mask.csv'))
+mask_table = mask_table.rename(columns={"order": "order_idx"}) # for consistency between code/specmatch
 
 # compute wavelength limits for masks
 mask_table_cut = mask_table.query("chip == 'ij'")
 max_v_shift = 30*u.km/u.s # padding to account for RV shifts
 minw, maxw = [], []
 for idx, row in mask_table_cut.iterrows():
-    w_order = original_wav_data[row.order]
+    w_order = original_wav_data[row.order_idx]
     # calculate minimum wavelength + padding for RV shift
     minw_idx = np.floor(w_order[row.minpix])
     minw_idx = (minw_idx*u.angstrom*(1-max_v_shift/c.c)).value

@@ -104,7 +104,6 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
 						+ [spec.fit_chisq, spec.training_density]
 				cannon_label_data.append(dict(zip(keys, values)))
-				print(id_starname)
 
 		# convert label data to dataframe
 		cannon_label_df = pd.DataFrame(cannon_label_data)

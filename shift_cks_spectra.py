@@ -5,16 +5,12 @@ and rescale them onto the original HIRES wavelength scale.
 from specmatchemp.spectrum import read_hires_fits
 from specmatchemp.specmatch import SpecMatch
 from specmatchemp import SPECMATCHDIR
-import specmatchemp.library
 import glob
 import os
 
 # paths to store shifted spectra
 shifted_resampled_path = './data/cks-spectra_shifted'
 kepler1656_path = './data/kepler1656_spectra'
-
-# load specmatch library for reference spectra
-lib = specmatchemp.library.read_hdf()
 
 # iterate over CKS spectra and shift
 spectrum_ids = [i[20:-5] for i in glob.glob('./data/cks-spectra/ij*.fits')]

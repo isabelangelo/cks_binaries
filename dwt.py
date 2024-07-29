@@ -48,7 +48,7 @@ def flux_waverec(flux, wavelet_wavedec, coeff_indices_to_keep):
 	flux_waverec = pywt.waverec(coeffs, wavelet_wavedec, **wt_kwargs)
 	return flux_waverec
 
-def load_spectrum(filename, filter_wavelets):
+def load_spectrum(rescaled_order, filter_wavelets):
 	"""
 	Load flux, sigma of a spectrum from a .fits file.
 	These flux + sigma values can be used during the Cannon
@@ -59,13 +59,10 @@ def load_spectrum(filename, filter_wavelets):
 								if False, return original spectrum
 	"""
 
-	# load data from file
-	file = fits.open(filename)[1].data
-
 	# store flux, sigma
-	flux_norm = file['s']
-	sigma_norm = file['serr']
-	w_order = file['w']
+	flux_norm = rescaled_order.s
+	sigma_norm = rescaled_order.serr
+	w_order = rescaled_order.w
 
 	# remove nans from flux, sigma
 	# note: this needs to happen here so that the Cannon

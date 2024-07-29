@@ -36,11 +36,6 @@ class Spectrum(object):
         
         # store order wavelength
         self.wav = wav_data[[i-1 for i in self.order_numbers]].flatten()
-        
-        # # compute wavelength mask
-        # sodium_mask = np.where((self.wav>sodium_wmin) & (self.wav<sodium_wmax))[0]
-        # telluric_mask = np.where((self.wav>telluric_wmin) & (self.wav<telluric_wmax))[0]
-        # self.mask = np.array(list(sodium_mask) + list(telluric_mask))
 
         # compute telluric mask
         self.mask = np.empty_like(self.flux).astype(bool)

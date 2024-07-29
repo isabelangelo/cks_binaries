@@ -2,6 +2,7 @@
 Loads labels + HIRES spectra for the Cannon training and test sets.
 """
 from specmatchemp.spectrum import read_hires_fits
+from specmatchemp.spectrum import read_fits
 from astropy.io import fits
 import dwt
 import pandas as pd
@@ -15,10 +16,10 @@ def trimmed(df):
 # ============ load literature data ==================================================
 
 # define paths to spectrum files + labels
-original_path = './data/cks-spectra_i/'
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_i/'
+original_path = './data/cks-spectra'
+shifted_path = './data/cks-spectra_shifted'
 df_path = './data/cannon_training_data'
-label_path = './data/label_dataframes/'
+label_path = './data/label_dataframes'
 
 # load binary data from Kraus 2016
 # function to load known tables with known binaries
@@ -57,14 +58,14 @@ id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
 k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
-original_w_file = read_hires_fits('./data/cks-spectra_i/K00001.fits') # can be any i chip file
-wav_data = orginal_wav_file.w[:,:-1] # require even number of elements
-wav_data = wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
+original_wav_file = read_hires_fits('./data/cks-spectra/ij122.742.fits') # KOI-1 original i chip file
+original_wav_data = original_wav_file.w[:,:-1] # require even number of elements
+wav_data = original_wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
 fits.HDUList([fits.PrimaryHDU(wav_data)]).writeto(reference_w_filename, overwrite=True)
 print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 
-# ============ clean training set + write labels to file  =========================================
+# ============ clean training set data  =========================================
 
 # load table with CKS properties from CKS website
 cks_stars = pd.read_csv('./data/label_dataframes/cks_stars.csv') 
@@ -89,8 +90,9 @@ for i in range(len(cks_stars)):
 
     # load file data
     row = cks_stars.iloc[i]
-    filename = original_path + '{}.fits'.format(
-        row.id_starname)
+    filename = '{}/{}.fits'.format(
+        original_path, 
+        row.obs_id.replace('rj','ij'))
     target = read_hires_fits(filename)
 
     # compute average pixel error, remove if snr<20
@@ -101,6 +103,8 @@ for i in range(len(cks_stars)):
         low_sigma_idx_to_remove.append(i)
 cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
+
+# ============ store binaries in separate files  =========================================
 
 # remove unresolved binaries from Kraus 2016
 kraus2016_binaries = cks_stars[cks_stars['id_starname'].isin(k16_tbl['id_starname'])]
@@ -118,27 +122,34 @@ print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
 
+# ============ re-format tables and write to files  =========================================
+
+# re-format vsini column
+cks_stars['cks_vsini'] = cks_stars['cks_vsini'].replace('--', np.nan)
+cks_stars['cks_vsini'] = cks_stars['cks_vsini'].astype(float)
+# set nan vsini for cool stars to 2±2 km/s
+cks_stars = cks_stars.fillna(value={"cks_vsini": 2.0, "cks_vsini_err": 2.0})
 
 # write to .csv file
-trimmed(cks_stars).to_csv(label_path+'training_labels.csv', index=False)
+trimmed(cks_stars).to_csv(label_path+'/training_labels.csv', index=False)
 print('training labels saved to .csv file')
 
 # write binaries to file, perserving the source information
 kraus2016_companions = pd.merge(k16_tbl, kraus2016_binaries)
 trimmed(kraus2016_companions).to_csv(
-    label_path+'kraus2016_binary_labels.csv', index=False)
+    label_path+'/kraus2016_binary_labels.csv', index=False)
 print('{} CKS targets ({} <0.8" companions) from Kraus 2016 saved to .csv'.format(
     len(kraus2016_binaries), len(kraus2016_companions)))
 
 kolbl2015_companions = pd.merge(k15_tbl, kolbl2015_binaries)
 trimmed(kolbl2015_companions).to_csv(
-    label_path+'kolbl2015_binary_labels.csv', index=False)
+    label_path+'/kolbl2015_binary_labels.csv', index=False)
 print('{} CKS targets ({} SB2 copmanions) from Kolbl 2015 saved to .csv'.format(
     len(kolbl2015_binaries), len(kolbl2015_companions)))
 
 # ============ write training flux, sigma to files  ================================================
 
-# re-write code below to save data for particular order
+# save data for particular order
 def single_order_training_data(order_idx, filter_wavelets=True):
 
     # order numbers are not zero-indexed
@@ -154,14 +165,20 @@ def single_order_training_data(order_idx, filter_wavelets=True):
 
         # load file data
         row = cks_stars.iloc[i]
-        filename = shifted_resampled_path + 'order{}/{}.fits'.format(
-            order_n, row.id_starname)
+        filename = '{}/{}_adj.fits'.format(
+            shifted_path, 
+            row.obs_id.replace('rj','ij'))
         id_starname_list.append(row.id_starname) # save star name for column
 
         # load spectrum from file
-        # and process for Cannon training
+        # and resample to unclipped HIRES wavelength scale
+        # (since flux, sigma arrays get clipped post-wavelet filtering)
+        KOI_spectrum = read_fits(filename)
+        rescaled_order = KOI_spectrum.rescale(original_wav_data[order_idx])
+
+        # process for Cannon training
         flux_norm, sigma_norm = dwt.load_spectrum(
-            filename, 
+            rescaled_order, 
             filter_wavelets)
 
         # save to lists

@@ -69,10 +69,6 @@ cks_stars = pd.concat([cks_main_stars, cks_cool_stars], ignore_index=True)
 # re-format obs ids
 cks_stars.obs_id = [i.replace(' ','') for i in cks_stars.obs_id]
 
-# set nan vsini for cool stars to 2±2 km/s
-cks_stars = cks_stars.fillna(
-    value={"vsini": 2, "vsini_err": 2})
-
 # save to file
 cks_stars_filename = './data/label_dataframes/cks_stars.csv'
 cks_stars.to_csv(cks_stars_filename)
