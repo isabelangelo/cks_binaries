@@ -82,15 +82,16 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
         model_path + 'one_to_one.png',
         model_suffix)
 
-####### train cannon models with wavelet filters #######
+####### train cannon models on original and wavelet-filtered spectra #######
 # all individual orders
-for order_n in range(3, 5):
+for order_n in range(1, 11):
     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
 # all orders combined
-# all_orders_list = np.arange(1,11,1).tolist()
-# train_cannon_model(all_orders_list, 'all_orders_dwt')
+all_orders_list = np.arange(1,11,1).tolist()
+train_cannon_model(all_orders_list, 'all_orders_dwt')
+train_cannon_model(all_orders_list, 'all_orders_original')
 
 # all orders except 11+12 + save training data
 # no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]

@@ -9,7 +9,7 @@ import pandas as pd
 import os
 
 # file with order stats
-order_data_path = './data/cannon_models/rchip_order_stats.csv'
+order_data_path = './data/cannon_models/ichip_order_stats.csv'
 
 # dataframe with trainig labels + object names
 training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
