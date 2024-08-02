@@ -58,7 +58,7 @@ id_starnames = ['K0'+str(value).zfill(4) for value in k15_tbl.KOI]
 k15_tbl['id_starname'] = id_starnames
 
 # write clipped wavelength data to reference file
-original_wav_file = read_hires_fits('./data/cks-spectra/ij122.742.fits') # KOI-1 original i chip file
+original_wav_file = read_hires_fits('./data/cks-spectra/rj122.742.fits') # KOI-1 original r chip file
 original_wav_data = original_wav_file.w[:,:-1] # require even number of elements
 wav_data = original_wav_data[:, dwt.order_clip:-1*dwt.order_clip] # clip 5% on each side
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'
@@ -70,6 +70,12 @@ print('clipped reference wavlength saved to {}'.format(reference_w_filename))
 # load table with CKS properties from CKS website
 cks_stars = pd.read_csv('./data/label_dataframes/cks_stars.csv') 
 print(len(cks_stars), ' table entries from CKS + CKS-cool')
+
+# re-format vsini column
+cks_stars['cks_vsini'] = cks_stars['cks_vsini'].replace('--', np.nan)
+cks_stars['cks_vsini'] = cks_stars['cks_vsini'].astype(float)
+# set nan vsini for cool stars to 2±2 km/s
+cks_stars = cks_stars.fillna(value={"cks_vsini": 2.0, "cks_vsini_err": 2.0})
 
 # temporary: remove stars from cks-cool
 cks_stars = cks_stars.query('cks_teff>=4200')
@@ -92,7 +98,7 @@ for i in range(len(cks_stars)):
     row = cks_stars.iloc[i]
     filename = '{}/{}.fits'.format(
         original_path, 
-        row.obs_id.replace('rj','ij'))
+        # row.obs_id.replace('rj','ij')) for i chip
     target = read_hires_fits(filename)
 
     # compute average pixel error, remove if snr<20
@@ -105,17 +111,18 @@ cks_stars = cks_stars.drop(cks_stars.index[low_sigma_idx_to_remove])
 print(len(cks_stars), ' after removing spectra with per pixel SNR < 20')
 
 # TEMPORARY: remove stars with i chip shifing errors
-shifting_error_ids = np.array([
-    'K00006', 'K00176', 'K00201', 'K00297', 'K00301', 'K00308',
-    'K00312', 'K00523', 'K00659', 'K00673', 'K00710', 'K01282',
-    'K01444', 'K01806', 'K01922', 'K01984', 'K02109', 'K02195',
-    'K02250', 'K02260', 'K02358', 'K02623', 'K02749', 'K03060',
-    'K03065', 'K03122', 'K03158', 'K03315', 'K03425', 'K03943',
-    'K04157', 'K04159', 'K04215', 'K04323', 'K04367', 'K04505',
-    'K04588', 'K04601', 'K04716', 'K04771', 'K04822', 'K05236',
-    'KIC11187332', 'GL570B'], dtype=object)
-cks_stars = cks_stars[~cks_stars.id_starname.isin(shifting_error_ids)]
-print(len(cks_stars), ' after removing stars with specmatch shifting errors')
+# shifting_error_ids = np.array([
+#     'K00006', 'K00176', 'K00201', 'K00297', 'K00301', 'K00308',
+#     'K00312', 'K00523', 'K00659', 'K00673', 'K00710', 'K01282',
+#     'K01444', 'K01806', 'K01922', 'K01984', 'K02109', 'K02195',
+#     'K02250', 'K02260', 'K02358', 'K02623', 'K02749', 'K03060',
+#     'K03065', 'K03122', 'K03158', 'K03315', 'K03425', 'K03943',
+#     'K04157', 'K04159', 'K04215', 'K04323', 'K04367', 'K04505',
+#     'K04588', 'K04601', 'K04716', 'K04771', 'K04822', 'K05236',
+#     'KIC11187332', 'GL570B'], dtype=object)
+# cks_stars = cks_stars[~cks_stars.id_starname.isin(shifting_error_ids)]
+# print(len(cks_stars), ' after removing stars with specmatch shifting errors')
+
 
 # ============ store binaries in separate files  =========================================
 
@@ -134,14 +141,11 @@ print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 # remove KOI-2864, which seems to have some RV pipeline processing errors
 cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
+print(cks_stars.cks_vsini.min())
 
-# ============ re-format tables and write to files  =========================================
+# ============ write tables to files  =========================================
 
-# re-format vsini column
-cks_stars['cks_vsini'] = cks_stars['cks_vsini'].replace('--', np.nan)
-cks_stars['cks_vsini'] = cks_stars['cks_vsini'].astype(float)
-# set nan vsini for cool stars to 2±2 km/s
-cks_stars = cks_stars.fillna(value={"cks_vsini": 2.0, "cks_vsini_err": 2.0})
+import pdb;pdb.set_trace()
 
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'/training_labels.csv', index=False)
@@ -180,7 +184,7 @@ def single_order_training_data(order_idx, filter_wavelets=True):
         row = cks_stars.iloc[i]
         filename = '{}/{}_adj.fits'.format(
             shifted_path, 
-            row.obs_id.replace('rj','ij'))
+            # row.obs_id.replace('rj','ij')) for i chip
         id_starname_list.append(row.id_starname) # save star name for column
 
         # load spectrum from file

@@ -65,7 +65,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
                            vectorizer=vectorizer)
 
     # train and store model
-    model_path = './data/cannon_models/ichip/{}/'.format(model_suffix)
+    model_path = './data/cannon_models/rchip/{}/'.format(model_suffix)
     os.mkdir(model_path)
     model_filename = model_path + 'cannon_model.model'
     model.train()
@@ -84,12 +84,12 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 
 ####### train cannon models on original and wavelet-filtered spectra #######
 # all individual orders
-for order_n in range(1, 11):
+for order_n in range(1, 17):
     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
 
 # all orders combined
-all_orders_list = np.arange(1,11,1).tolist()
+all_orders_list = np.arange(1,17,1).tolist()
 train_cannon_model(all_orders_list, 'all_orders_dwt')
 train_cannon_model(all_orders_list, 'all_orders_original')
 
