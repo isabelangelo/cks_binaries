@@ -98,7 +98,7 @@ for i in range(len(cks_stars)):
     row = cks_stars.iloc[i]
     filename = '{}/{}.fits'.format(
         original_path, 
-        # row.obs_id.replace('rj','ij')) for i chip
+        row.obs_id) # .replace('rj','ij')) # for i chip
     target = read_hires_fits(filename)
 
     # compute average pixel error, remove if snr<20
@@ -141,11 +141,8 @@ print(len(cks_stars), ' after removing unresolved binaries from Kolbl 2015')
 # remove KOI-2864, which seems to have some RV pipeline processing errors
 cks_stars = cks_stars[~cks_stars.id_starname.isin(['K02864'])]
 print(len(cks_stars), ' after removing stars with processing errors')
-print(cks_stars.cks_vsini.min())
 
 # ============ write tables to files  =========================================
-
-import pdb;pdb.set_trace()
 
 # write to .csv file
 trimmed(cks_stars).to_csv(label_path+'/training_labels.csv', index=False)
@@ -183,8 +180,8 @@ def single_order_training_data(order_idx, filter_wavelets=True):
         # load file data
         row = cks_stars.iloc[i]
         filename = '{}/{}_adj.fits'.format(
-            shifted_path, 
-            # row.obs_id.replace('rj','ij')) for i chip
+            shifted_path,  
+            row.obs_id) # .replace('rj','ij')) # for i chip
         id_starname_list.append(row.id_starname) # save star name for column
 
         # load spectrum from file

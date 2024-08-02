@@ -9,7 +9,7 @@ import pandas as pd
 import os
 
 # file with order stats
-order_data_path = './data/cannon_models/ichip_order_stats.csv'
+order_data_path = './data/cannon_models/rchip_order_stats.csv'
 
 # dataframe with trainig labels + object names
 training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
@@ -39,7 +39,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 	labels_to_plot = ['teff', 'logg', 'feh', 'vsini']
 
 	# compute model to validate based on order number
-	model_dir = './data/cannon_models/ichip/{}/'.format(model_suffix)
+	model_dir = './data/cannon_models/rchip/{}/'.format(model_suffix)
 	model_to_validate = tc.CannonModel.read(model_dir+'cannon_model.model')
 
 	def compute_cannon_labels():
