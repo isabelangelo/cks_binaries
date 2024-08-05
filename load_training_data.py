@@ -212,7 +212,7 @@ def single_order_training_data(order_idx, filter_wavelets=True):
 # write wavelet filtered training set flux, sigma to files
 flux_df_dwt = pd.DataFrame()
 sigma_df_dwt = pd.DataFrame()
-for order_idx in range(0, 10):
+for order_idx in range(0, 16):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx)
     flux_df_dwt = pd.concat([flux_df_dwt, flux_df_n])
     sigma_df_dwt = pd.concat([sigma_df_dwt, sigma_df_n])
@@ -223,7 +223,7 @@ print('wavelet-filtered training flux and sigma saved to .csv files')
 # write original training set flux, sigma to files
 flux_df_original = pd.DataFrame()
 sigma_df_original = pd.DataFrame()
-for order_idx in range(0, 10):
+for order_idx in range(0, 16):
     flux_df_n, sigma_df_n = single_order_training_data(order_idx, filter_wavelets=False)
     flux_df_original = pd.concat([flux_df_original, flux_df_n])
     sigma_df_original = pd.concat([sigma_df_original, sigma_df_n])

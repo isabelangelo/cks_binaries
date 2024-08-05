@@ -1,17 +1,16 @@
 """
 Loads labels + HIRES spectra for the Cannon training and test sets.
 """
+from specmatchemp.spectrum import read_hires_fits
 from specmatchemp.spectrum import read_fits
-from astropy.io import fits
-from spectrum import Spectrum
-from spectrum import tc 
+import thecannon as tc
 import pandas as pd
 import numpy as np
 import dwt
 
 # define paths to spectrum files + labels
-df_path = './data/spectrum_dataframes/'
-shifted_resampled_path = './data/cks-spectra_shifted_resampled_r/'
+df_path = './data/spectrum_dataframes'
+shifted_path = './data/cks-spectra_shifted'
 
 # path to names + labels of Kraus 2016 + Kolbl 2015 binaries
 kraus2016_binaries = pd.read_csv('./data/label_dataframes/kraus2016_binary_labels.csv')
@@ -23,9 +22,14 @@ known_binaries = pd.concat((
 # filter fluxes with wavelet decomposition
 filter_wavelets=True
 # store orders in relevant Cannon model
-order_numbers = [i for i in np.arange(1,17,1).tolist() if i not in [2, 12]]
-model_path = './data/cannon_models/rchip/orders_2.12_omitted_dwt/'
-cannon_model = tc.CannonModel.read(model_path+'cannon_model.model')
+order_numbers = [i for i in np.arange(1,17,1).tolist() if i not in [2,11,12,16]]
+model_path = './data/cannon_models/rchip/adopted_orders_dwt'
+cannon_model = tc.CannonModel.read(model_path+'/cannon_model.model')
+
+# load original wavelength data for rescaling
+# this is from the KOI-1 original r chip file
+original_wav_file = read_hires_fits('./data/cks-spectra/rj122.742.fits') 
+original_wav_data = original_wav_file.w[:,:-1] # require even number of elements
 
 # store flux, sigma for all orders
 flux_df = pd.DataFrame()
@@ -36,20 +40,28 @@ for order_n in order_numbers:
 	id_starname_list = []
 	flux_list = []
 	sigma_list = []
+	# order index for wavelength re-scaling
+	order_idx = order_n - 1
 
 	# get order data for all stars in training set
 	for i in range(len(known_binaries)):
 		# load file data
 		row = known_binaries.iloc[i]
-		filename = shifted_resampled_path + 'order{}/{}.fits'.format(
-            order_n, row.id_starname)
+		filename = '{}/{}_adj.fits'.format(
+            shifted_path,  
+            row.obs_id) # .replace('rj','ij')) # for i chip
 		id_starname_list.append(row.id_starname) # save star name for column
 
 		# load spectrum from file
-		# and process for Cannon training
+		# and resample to unclipped HIRES wavelength scale
+		# (since flux, sigma arrays get clipped post-wavelet filtering)
+		KOI_spectrum = read_fits(filename)
+		rescaled_order = KOI_spectrum.rescale(original_wav_data[order_idx])
+
+		# process for Cannon training
 		flux_norm, sigma_norm = dwt.load_spectrum(
-			filename, 
-			filter_wavelets)
+		    rescaled_order, 
+		    filter_wavelets)
 
 		# save to lists
 		flux_list.append(flux_norm)
@@ -68,8 +80,8 @@ for order_n in order_numbers:
 	sigma_df = pd.concat([sigma_df, sigma_df_n])
 
 # write flux, sigma to .csv files
-flux_path = '{}known_binary_flux_dwt.csv'.format(df_path)
-sigma_path = '{}known_binary_sigma_dwt.csv'.format(df_path)
+flux_path = '{}/known_binary_flux_dwt.csv'.format(df_path)
+sigma_path = '{}/known_binary_sigma_dwt.csv'.format(df_path)
 
 flux_df.to_csv(flux_path, index=False)
 sigma_df.to_csv(sigma_path, index=False)
