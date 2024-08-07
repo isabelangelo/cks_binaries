@@ -104,20 +104,8 @@ class Spectrum(object):
         and chi-squared associated with best-fit binary model
         Asserts that the primary is the brighter star in the fit
         """
-
-        # this is just to test the time, it can be removed later
-        t0_setup = time.time()
-
         # pixel weights for chi-squared calculation
         weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
-
-        # kwgsfor local optimizer (l-bfgs-b)
-        lbfgsb_options = {
-            'maxiter': 100,  # Maximum number of iterations
-            'ftol': 1e-7,     # Function value tolerance
-            'gtol': 1e-5,     # Gradient norm tolerance
-            'eps': 1e-8       # Step size for numerical gradient approximation
-        }
 
         # initial conditions of binary set by single star
         # for labels other than Teff
@@ -130,13 +118,11 @@ class Spectrum(object):
         teff_min, teff_max = label_arr[0].min(), label_arr[0].max()
         logg_min, logg_max = label_arr[1].min(), label_arr[1].max()
         feh_min, feh_max = label_arr[2].min(), label_arr[2].max()
-        vsini_min, vsini_max = label_arr[3].min(), label_arr[3].max()
+        vsini_min, vsini_max = np.log10(label_arr[3].min()), np.log10(label_arr[3].max())
         rv_min, rv_max = -10, 10
         local_op_bounds = [(teff_min, teff_max), (logg_min, logg_max), (feh_min, feh_max), 
                      (vsini_min, vsini_max), (rv_min, rv_max), (teff_min, teff_max), 
                      (logg_min, logg_max), (vsini_min, vsini_max), (rv_min, rv_max)]
-        
-        print('time for setup: {} seconds'.format(time.time()-t0_setup))
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
             """Calculate binary model associated with set of parameters
@@ -199,26 +185,25 @@ class Spectrum(object):
         # based on El-Badry 2018a Figure 2, 
         # teff1 is sampled around the single star fit and teff2<teff1
         # and we prevent checking outside (teff_min, teff_max)
-        t0_brute = time.time()
         teff_ranges = (
             slice(max(teff_min, teff_init-500), min(teff_max, teff_init+1000), 100), # teff1
             slice(teff_min, min(teff_max, teff_init+700), 100)) # teff2
         chisq_args = (self.wav, self.flux, self.cannon_model)
         op_brute = brute(residuals_wrapper, teff_ranges, chisq_args, finish=None)  
-        print('time for brute search: {} seconds'.format(time.time()-t0_brute))
         teff1_init, teff2_init = max(op_brute), min(op_brute)
-        print('from brute search: teff1={}K, teff2={}K'.format(teff1_init, teff2_init))
 
         # perform localized search at minimum from brute search
-        t0_lbfgsb = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff2_init, logg_init, vsini_init, 0])
         op_slsqp = minimize(residuals, initial_labels, args=chisq_args, method='SLSQP', 
                              bounds=local_op_bounds)
-        print('time for local search: {} seconds'.format(time.time()-t0_lbfgsb))
         
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_slsqp.x
+        # re-parameterize from log(vsini) to vsini
+        self.binary_fit_cannon_labels[3] = 10**self.binary_fit_cannon_labels[3]
+        self.binary_fit_cannon_labels[7] = 10**self.binary_fit_cannon_labels[7] 
+
         self.binary_model_flux = binary_model(
             self.binary_fit_cannon_labels[:5], 
             self.binary_fit_cannon_labels[[5,6,2,7,8]],
@@ -254,6 +239,7 @@ class Spectrum(object):
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
     def plot_binary(self, zoom_min=5150, zoom_max=5190):
+        # TO DO: add telluric mask to plot
         self.fit_single_star()
         self.fit_binary()
         # create figure
@@ -264,7 +250,6 @@ class Spectrum(object):
         plt.plot(self.wav, self.flux, 'k-', label='data')
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
         plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
-        plt.axvspan(telluric_wmin, telluric_wmax, color='lightgrey', alpha=0.6)
         plt.legend(ncols=3, loc='upper left')
         # middel panel: spectrum with single star, binary fits, zoomed in
         plt.subplot(312);plt.ylabel('wavelet-filtered\nflux')
@@ -286,19 +271,20 @@ class Spectrum(object):
 
 # optimizer test
 # fit binary to KOI-289
-import pandas as pd
-import thecannon as tc
-binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
-spec = Spectrum(
-    binary_flux['K00289'], 
-    binary_sigma['K00289'],
-    order_numbers,
-    model)
-spec.fit_single_star()
-t0=time.time()
-spec.fit_binary()
-print('total time = {} seconds'.format(time.time()-t0))
+# import pandas as pd
+# import thecannon as tc
+# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+# model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
+# order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
+# spec = Spectrum(
+#     binary_flux['K00289'], 
+#     binary_sigma['K00289'],
+#     order_numbers,
+#     model)
+# spec.fit_single_star()
+# t0=time.time()
+# spec.fit_binary()
+# print('total time = {} seconds'.format(time.time()-t0))
+# spec.plot_binary(zoom_min=6120, zoom_max=6150)
 
