@@ -22,7 +22,7 @@ known_binaries = pd.concat((
 # filter fluxes with wavelet decomposition
 filter_wavelets=True
 # store orders in relevant Cannon model
-order_numbers = [i for i in np.arange(1,17,1).tolist() if i not in [2,11,12,16]]
+order_numbers = [i for i in np.arange(1,17,1).tolist() if i not in [2,3,12]]
 model_path = './data/cannon_models/rchip/adopted_orders_dwt'
 cannon_model = tc.CannonModel.read(model_path+'/cannon_model.model')
 

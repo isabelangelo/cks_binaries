@@ -83,7 +83,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
         model_suffix)
 
 ####### train cannon models on original and wavelet-filtered spectra #######
-# all individual orders
+# # all individual orders
 # for order_n in range(1, 17):
 #     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
 #     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
@@ -94,22 +94,9 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
 # train_cannon_model(all_orders_list, 'all_orders_original')
 
 # all orders except 11+12 + save training data
-adopted_orders = [i for i in np.arange(1,17,1).tolist() if i not in [2,11,12,16]]
+adopted_orders = [i for i in np.arange(1,17,1).tolist() if i not in [2,3,12]]
 train_cannon_model(adopted_orders, 'adopted_orders_dwt', save_training_data=True)
 train_cannon_model(adopted_orders, 'adopted_orders_original', filter_type='original')
-
-###### train cannon models with original spectra #######
-# all individual orders
-# for order_n in range(1, 11):
-#     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
-
-# all orders combined
-# all_orders_list = np.arange(1,11,1).tolist()
-# train_cannon_model(all_orders_list, 'all_orders_original', filter_type='original')
-
-# orders except 11+12, without wavelet filtering
-# no_sodium_list = [i for i in np.arange(1,17,1).tolist() if i not in [2, 11,12]]
-# train_cannon_model(no_sodium_list, 'orders_2.11.12_omitted_original', filter_type='original')
 
 
 
