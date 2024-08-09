@@ -57,6 +57,7 @@ mass_pm2013 = np.array([float(i) for i in pm2013['Msun']])
 valid_mass = ~np.isnan(mass_pm2013)
 teff2radius = interp1d(teff_pm2013[valid_mass], R_pm2013[valid_mass])
 teff2mass = interp1d(teff_pm2013[valid_mass], mass_pm2013[valid_mass])
+mass2teff = interp1d(mass_pm2013[valid_mass], teff_pm2013[valid_mass])
 
 # function to compute flux weights 
 # of primary, secondary in binary model
