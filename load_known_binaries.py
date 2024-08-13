@@ -93,6 +93,8 @@ print(sigma_path)
 # compute metrics for binary sample and save to dataframe
 print('computing metrics for binary sample:')
 metric_keys = ['fit_chisq', 'training_density', 'binary_fit_chisq', 'delta_chisq']
+binary_label_keys = ['teff1', 'logg1', 'feh12', 'vsini1', 'rv1', 'teff2', 'logg2', 'vsini2' , 'rv2']
+binary_label_keys = ['cannon_'+i for i in binary_label_keys]
 metric_data = []
 for star in flux_df.columns[1:]:
 	print(star)
@@ -109,9 +111,10 @@ for star in flux_df.columns[1:]:
 	spec.fit_single_star()
 	spec.fit_binary()
 	# store metrics in dataframe
-	keys = ['id_starname'] + metric_keys
+	keys = ['id_starname'] + metric_keys + binary_label_keys
 	values = [star] + [spec.fit_chisq, spec.training_density, \
-	spec.binary_fit_chisq, spec.delta_chisq]
+	spec.binary_fit_chisq, spec.delta_chisq] + \
+	spec.binary_fit_cannon_labels.tolist()
 	metric_data.append(dict(zip(keys, values)))
 # convert metric data to dataframe
 metric_df = pd.DataFrame(metric_data)

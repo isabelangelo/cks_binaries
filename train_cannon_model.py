@@ -22,7 +22,8 @@ training_flux_dwt = pd.read_csv(training_data_path+'training_flux_dwt.csv')
 training_sigma_dwt = pd.read_csv(training_data_path+'training_sigma_dwt.csv')
 
 
-def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_training_data=False):
+def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', 
+    save_training_data=False, save_binary_metrics=False):
     """
     Trains a Cannon model using all the orders specified in order_numbers
     order_numbers (list): order numbers to train on, 1-16 for HIRES r chip
@@ -80,23 +81,26 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt', save_trai
         order_numbers, 
         training_set.to_pandas(), 
         model_path + 'one_to_one.png',
-        model_suffix)
+        model_suffix,
+        save_binary_metrics=save_binary_metrics)
 
 ####### train cannon models on original and wavelet-filtered spectra #######
-# # all individual orders
-# for order_n in range(1, 17):
-#     train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
-#     train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
-
-# # all orders combined
-# all_orders_list = np.arange(1,17,1).tolist()
-# train_cannon_model(all_orders_list, 'all_orders_dwt')
-# train_cannon_model(all_orders_list, 'all_orders_original')
-
 # all orders except 11+12 + save training data
-adopted_orders = [i for i in np.arange(1,17,1).tolist() if i not in [2,3,12]]
-train_cannon_model(adopted_orders, 'adopted_orders_dwt', save_training_data=True)
-train_cannon_model(adopted_orders, 'adopted_orders_original', filter_type='original')
+# adopted_orders = [i for i in np.arange(1,17,1).tolist() if i not in [2,3,12]]
+# train_cannon_model(adopted_orders, 'adopted_orders_dwt', save_training_data=True, save_binary_metrics=True)
+# train_cannon_model(adopted_orders, 'adopted_orders_original', filter_type='original')
+
+# all individual orders
+for order_n in range(1, 17):
+    train_cannon_model([order_n], 'order{}_dwt'.format(order_n))
+    #train_cannon_model([order_n], 'order{}_original'.format(order_n), filter_type='original')
+
+# all orders combined
+all_orders_list = np.arange(1,17,1).tolist()
+train_cannon_model(all_orders_list, 'all_orders_dwt')
+#train_cannon_model(all_orders_list, 'all_orders_original')
+
+
 
 
 

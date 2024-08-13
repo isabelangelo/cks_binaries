@@ -9,7 +9,7 @@ import pandas as pd
 import os
 
 # file with order stats
-order_data_path = './data/cannon_models/rchip_order_stats.csv'
+order_data_path = './data/cannon_models/rchip/rchip_order_stats.csv'
 
 # dataframe with trainig labels + object names
 training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
@@ -20,7 +20,8 @@ if os.path.exists(order_data_path)==False:
 	# write the DataFrame to a CSV file
 	empty_order_df.to_csv(order_data_path, index=False)
 
-def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix):
+def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, 
+	model_suffix, save_binary_metrics=False):
 	"""
 	Plot a one-to-one comparison of the training set labels from CKS and the Cannon
     labels inferred from the training set spectra. 
@@ -34,6 +35,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
     	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
     	figure_path (str) : full path to save plot to 
     	model_suffix (str) : string associated with model to go in filenames
+    	save_binary_metrics : if True, saves binary metric statsitcs to .csv fit cannon labels
 	"""
 	pc = 'k';markersize=1;alpha_value=0.5
 	labels_to_plot = ['teff', 'logg', 'feh', 'vsini']
@@ -98,14 +100,21 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path, model_suffix
 					order_numbers, 
 					model_leave1out)
 				spec.fit_single_star()
-				spec.fit_binary()
 				cannon_labels = spec.fit_cannon_labels
 
-				# store data for plot
-				keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
-				values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
+				# store metrics for one2one plot + validation
+				if save_binary_metrics:
+					spec.fit_binary()
+					keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
+					values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
 						+ [spec.fit_chisq, spec.training_density, spec.binary_fit_chisq, \
 						spec.delta_chisq]
+				else:
+					keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys[:-2]
+					values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
+						+ [spec.fit_chisq, spec.training_density]
+						
+				# save to dataframe
 				cannon_label_data.append(dict(zip(keys, values)))
 
 		# convert label data to dataframe
