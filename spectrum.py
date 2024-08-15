@@ -23,7 +23,7 @@ class Spectrum(object):
                         e.g., 4, [1,2,6,15,16]
         cannon_model (tc.CannonModel): Cannon model object to use to model spectrum
     """
-    def __init__(self, flux, sigma, order_numbers, cannon_model):
+    def __init__(self, flux, sigma, order_numbers=adopted_order_numbers, cannon_model=adopted_model):
         
         # store spectrum information
         self.flux = np.array(flux)
@@ -199,24 +199,24 @@ class Spectrum(object):
         # based on El-Badry 2018a Figure 2, 
         # teff1 is bound by the training set, teff_ratio=0-1
         # but we return chisq=inf for teff2 outside training set
-        t0_brute = time.time()
+        # t0_brute = time.time()
         teff_ranges = (
             slice(teff_min, teff_max, 100), # teff1
             slice(teff_ratio_min, teff_ratio_max, 0.01)) # teff_ratio
         chisq_args = (self.wav, self.flux, self.cannon_model)
         op_brute = brute(residuals_wrapper, teff_ranges, chisq_args, finish=None) 
         teff1_init, teff_ratio_init = op_brute
-        print('time for brute search: {} seconds'.format(time.time()-t0_brute))
-        print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
+        # print('time for brute search: {} seconds'.format(time.time()-t0_brute))
+        # print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
 
         # perform localized search at minimum from brute search
-        t0_local = time.time()
+        # t0_local = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff_ratio_init, logg_init, vsini_init, 0])
         op_slsqp = minimize(residuals, initial_labels, args=chisq_args, method='SLSQP', 
                              bounds=slsqp_bounds, options=slsqp_options)
-        print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
-        print('best-fit binary chisq:', op_slsqp.fun)
+        # print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
+        # print('best-fit binary chisq:', op_slsqp.fun)
 
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_slsqp.x
@@ -295,8 +295,9 @@ class Spectrum(object):
         plt.xlabel('wavelength (angstrom)')
         plt.show()
 
-# optimizer test
-# fit binary to KOI-289
+
+
+# optimizer test 1: q=1 binary KOI-289
 # import pandas as pd
 # import thecannon as tc
 # binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
@@ -313,4 +314,26 @@ class Spectrum(object):
 # spec.fit_binary()
 # print('total time = {} seconds'.format(time.time()-t0))
 #spec.plot_binary(zoom_min=6120, zoom_max=6150)
+
+# optimizer test 2: binary with Tseff2=3000-4200 prone to negative delta_chisq
+# import pandas as pd
+# import thecannon as tc
+# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+# model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
+# order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
+# spec = Spectrum(
+#     binary_flux['K00387'], 
+#     binary_sigma['K00387'],
+#     order_numbers,
+#     model)
+# spec.fit_single_star()
+# t0=time.time()
+# spec.fit_binary()
+# print('total time = {} seconds'.format(time.time()-t0))
+# #spec.plot_binary(zoom_min=6120, zoom_max=6150)
+# print('single star chisq = {}'.format(spec.fit_chisq))
+# print('binary chisq = {}'.format(spec.binary_fit_chisq))
+
+
 
