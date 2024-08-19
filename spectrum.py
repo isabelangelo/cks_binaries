@@ -1,4 +1,3 @@
-import thecannon as tc
 import numpy as np
 import astropy.units as u
 import astropy.constants as c
@@ -126,7 +125,7 @@ class Spectrum(object):
                            (feh_min, feh_max), (vsini_min, vsini_max), 
                            (rv_min, rv_max), (teff_ratio_min, teff_ratio_max), 
                            (logg_min, logg_max), (vsini_min, vsini_max), (rv_min, rv_max)]
-        slsqp_options = {'maxiter':50, 'ftol':1e-3}
+        slsqp_options = {'ftol':1e-7}
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
             """Calculate binary model associated with set of parameters
@@ -151,15 +150,15 @@ class Spectrum(object):
             return model
 
 
-        def residuals(params, wav, flux, cannon_model):
+        def log_chisq(params, wav, flux, cannon_model):
             """
-            per-pixel chi-squared for a given set of primary + secondary star labels
+            per-pixel log(chi-squared) for a given set of primary + secondary star labels
                 Args:
                     param (np.array): [teff1, logg1, met1, vsini1, RV1, 
                     teff_ratio, logg2, met2, vsini2, RV2] 
                     (1 denotes primary, 2 denotes secondary)
                 Returns:
-                    resid (np.array): per pixel chi-squared
+                    log_chisq (np.array): per pixel chi-squared
             """
             # store primary, secondary parameters
             cannon_param1 = params[:5]
@@ -181,42 +180,42 @@ class Spectrum(object):
                 # compute chisq
                 model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
                 resid = weights * (model - flux)
-                sum_resid2 = sum(resid**2)
-                #print(int(cannon_param1[0]), int(cannon_param2[0]), int(sum_resid2))
-                return sum_resid2
+                log_chisq = np.log10(sum(resid**2))
+                #print(int(cannon_param1[0]), (cannon_param2[0]/cannon_param1[0]).round(4), int(sum_resid2))
+                return log_chisq
 
         # wrapper function to fix non-teff labels in brute search
-        def residuals_wrapper(teff_params, wav, flux, cannon_model):
+        def log_chisq_wrapper(teff_params, wav, flux, cannon_model):
             """
             Wrapper function that computes residuals while only varying teff1, teff_ratio,
             used only for coarse brute search
             """
             params = np.array([teff_params[0], logg_init, feh_init, vsini_init, 0, \
                       teff_params[1], logg_init, vsini_init, 0])
-            return residuals(params, wav, flux, cannon_model)
+            return log_chisq(params, wav, flux, cannon_model)
 
         # perform coarse brute search for ballpark teff1, teff_ratio
         # based on El-Badry 2018a Figure 2, 
         # teff1 is bound by the training set, teff_ratio=0-1
         # but we return chisq=inf for teff2 outside training set
-        # t0_brute = time.time()
+        t0_brute = time.time()
         teff_ranges = (
             slice(teff_min, teff_max, 100), # teff1
             slice(teff_ratio_min, teff_ratio_max, 0.01)) # teff_ratio
         chisq_args = (self.wav, self.flux, self.cannon_model)
-        op_brute = brute(residuals_wrapper, teff_ranges, chisq_args, finish=None) 
+        op_brute = brute(log_chisq_wrapper, teff_ranges, chisq_args, finish=None) 
         teff1_init, teff_ratio_init = op_brute
-        # print('time for brute search: {} seconds'.format(time.time()-t0_brute))
-        # print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
+        print('time for brute search: {} seconds'.format(time.time()-t0_brute))
+        print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
 
         # perform localized search at minimum from brute search
-        # t0_local = time.time()
+        t0_local = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff_ratio_init, logg_init, vsini_init, 0])
-        op_slsqp = minimize(residuals, initial_labels, args=chisq_args, method='SLSQP', 
+        op_slsqp = minimize(log_chisq, initial_labels, args=chisq_args, method='SLSQP', 
                              bounds=slsqp_bounds, options=slsqp_options)
-        # print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
-        # print('best-fit binary chisq:', op_slsqp.fun)
+        print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
+        print('best-fit binary chisq:', op_slsqp.fun)
 
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_slsqp.x
@@ -242,26 +241,30 @@ class Spectrum(object):
 
 
     # temporary function to visualize the fit
-    def plot_fit(self, zoom_order=14):
+    def plot_fit(self, zoom_min=5400, zoom_max=5420):
         self.fit_single_star()
-        plt.figure(figsize=(10,7))
+        plt.figure(figsize=(15,10))
         plt.rcParams['font.size']=15
         plt.subplots_adjust(hspace=0)
         plt.subplot(211)
         plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
-            ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+            ecolor='#E8E8E8', elinewidth=4, zorder=0, linewidth=2)
+        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8)
         plt.plot(self.wav, self.model_residuals-1, 'k-')
+        plt.axvspan(self.wav[self.mask][0], self.wav[self.mask][-1], 
+            alpha=0.2, color='lightgrey')
         plt.xlim(self.wav[0],self.wav[-1])
         plt.ylabel('normalized flux')
         plt.xticks([])
 
         plt.subplot(212)
         plt.errorbar(self.wav, self.flux, yerr=self.sigma, color='k', 
-            ecolor='#E8E8E8', elinewidth=4, zorder=0)
-        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8, lw=1.5)
+            ecolor='#E8E8E8', elinewidth=4, zorder=0, linewidth=2)
+        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8)
         plt.plot(self.wav, self.model_residuals-1, 'k-')
-        plt.xlim(wav_data[zoom_order-1][0], wav_data[zoom_order-1][-1])
+        plt.axvspan(self.wav[self.mask][0], self.wav[self.mask][-1], 
+            alpha=0.2, color='lightgrey')
+        plt.xlim(zoom_min, zoom_max)
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
     def plot_binary(self, zoom_min=5150, zoom_max=5190):
