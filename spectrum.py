@@ -22,9 +22,9 @@ class Spectrum(object):
                         e.g., 4, [1,2,6,15,16]
         cannon_model (tc.CannonModel): Cannon model object to use to model spectrum
     """
-    def __init__(self, flux, sigma, order_numbers=adopted_order_numbers, cannon_model=adopted_model):
-        
-        # store spectrum information
+    def __init__(self, flux, sigma, order_numbers, cannon_model):
+
+        # store spectrum information, mask telluric features
         self.flux = np.array(flux)
         self.sigma = np.array(sigma)
 
@@ -39,20 +39,24 @@ class Spectrum(object):
 
         # compute telluric mask
         self.mask = np.empty_like(self.flux).astype(bool)
-        self.mask.fill(False)
+        self.mask.fill(True)
         for n, row in mask_table_cut.iterrows():
             start = row['minw']
             end = row['maxw']
-            self.mask[(self.wav>start) & (self.wav<end)] = True
-
-        # mask out sodium, telluric features
-        self.sigma_for_fit = self.sigma.copy()
-        self.sigma_for_fit[self.mask] = np.inf
+            self.mask[(self.wav>start) & (self.wav<end)] = False
         
         # store cannon model information
         self.cannon_model = cannon_model
         training_data = self.cannon_model.training_set_labels
         self.training_density_kde = stats.gaussian_kde(training_data.T)
+
+        # per pixel weights for chisq calculation
+        self.err2 = self.sigma**2+self.cannon_model.s2
+        self.weights = 1/np.sqrt(self.err2)
+
+        # quantities for BIC calculation
+        self._L_err_term = np.log(np.sqrt(2*np.pi*self.err2))
+        self._n_pixels = np.sum(self.mask)
         
     def fit_single_star(self):
         """ Run the test step on the ra (similar to the Cannon 2 
@@ -74,8 +78,8 @@ class Spectrum(object):
 
             # compute chisq
             model = self.cannon_model(cannon_param)
-            weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
-            resid = weights * (model - self.flux)
+            resid = self.weights * (model - self.flux)
+            resid = resid[self.mask]
 
             return resid
         
@@ -83,28 +87,37 @@ class Spectrum(object):
         initial_labels = self.cannon_model._fiducials.copy()
         # re-parameterize from vsini to log(vsini) in optimizer
         initial_labels[-1] = np.log10(initial_labels[-1]) 
+        
         # perform fit
         result = leastsq(residuals,x0=initial_labels, full_output=True)
         self.fit_cannon_labels = result[0].copy()
         # re-parameterize from log(vsini) to vsini
         self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
+        
         # compute metrics associated with best-fit labels
         # note: I need to use the logvsini parameterization for chi-squared
         # since it's calculated using residuals()
         self.fit_chisq = np.sum(result[2]["fvec"]**2)
         self.training_density = self.training_density_kde(self.fit_cannon_labels)[0]
-        # compute residuals of best-fit model
+        
+        # residuals of best-fit model
         self.model_flux = self.cannon_model(self.fit_cannon_labels)
         self.model_residuals = self.flux - self.model_flux
+        
+        # BIC of best-fit model evaluated at non-masked pixels
+        L_data_term = self.model_residuals**2/self.err2
+        ln_L = (-1/2)*np.sum(L_data_term[self.mask] - self._L_err_term[self.mask])
+        self.fit_BIC = len(self.fit_cannon_labels)*np.log(self._n_pixels) - 2*ln_L
 
-    def fit_binary(self):
+
+    def fit_binary(self, save_chisq_surface_to = None):
         """
         Perform binary model fit to HIRES spectrum and compute model flux
         and chi-squared associated with best-fit binary model
         Asserts that the primary is the brighter star in the fit
         """
         # pixel weights for chi-squared calculation
-        weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
+        #weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
 
         # initial conditions of binary set by single star
         # for labels other than Teff
@@ -119,7 +132,7 @@ class Spectrum(object):
         logg_min, logg_max = label_arr[1].min(), label_arr[1].max()
         feh_min, feh_max = label_arr[2].min(), label_arr[2].max()
         vsini_min, vsini_max = np.log10(label_arr[3].min()), np.log10(label_arr[3].max())
-        teff_ratio_min, teff_ratio_max = 0,1
+        teff_ratio_min, teff_ratio_max = 0.6,1
         rv_min, rv_max = -10, 10
         slsqp_bounds = [(teff_min, teff_max), (logg_min, logg_max), 
                            (feh_min, feh_max), (vsini_min, vsini_max), 
@@ -150,7 +163,7 @@ class Spectrum(object):
             return model
 
 
-        def log_chisq(params, wav, flux, cannon_model):
+        def residuals(params, wav, flux, cannon_model):
             """
             per-pixel log(chi-squared) for a given set of primary + secondary star labels
                 Args:
@@ -179,20 +192,19 @@ class Spectrum(object):
             else:
                 # compute chisq
                 model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
-                resid = weights * (model - flux)
-                log_chisq = np.log10(sum(resid**2))
-                #print(int(cannon_param1[0]), (cannon_param2[0]/cannon_param1[0]).round(4), int(sum_resid2))
-                return log_chisq
+                resid = self.weights * (model - flux)
+                sum_resid2 = sum(resid[self.mask]**2)
+                return sum_resid2
 
         # wrapper function to fix non-teff labels in brute search
-        def log_chisq_wrapper(teff_params, wav, flux, cannon_model):
+        def residuals_wrapper(teff_params, wav, flux, cannon_model):
             """
             Wrapper function that computes residuals while only varying teff1, teff_ratio,
             used only for coarse brute search
             """
             params = np.array([teff_params[0], logg_init, feh_init, vsini_init, 0, \
                       teff_params[1], logg_init, vsini_init, 0])
-            return log_chisq(params, wav, flux, cannon_model)
+            return residuals(params, wav, flux, cannon_model)
 
         # perform coarse brute search for ballpark teff1, teff_ratio
         # based on El-Badry 2018a Figure 2, 
@@ -203,7 +215,7 @@ class Spectrum(object):
             slice(teff_min, teff_max, 100), # teff1
             slice(teff_ratio_min, teff_ratio_max, 0.01)) # teff_ratio
         chisq_args = (self.wav, self.flux, self.cannon_model)
-        op_brute = brute(log_chisq_wrapper, teff_ranges, chisq_args, finish=None) 
+        op_brute = brute(residuals_wrapper, teff_ranges, chisq_args, finish=None) 
         teff1_init, teff_ratio_init = op_brute
         print('time for brute search: {} seconds'.format(time.time()-t0_brute))
         print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
@@ -212,10 +224,10 @@ class Spectrum(object):
         t0_local = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff_ratio_init, logg_init, vsini_init, 0])
-        op_slsqp = minimize(log_chisq, initial_labels, args=chisq_args, method='SLSQP', 
+        op_slsqp = minimize(residuals, initial_labels, args=chisq_args, method='SLSQP', 
                              bounds=slsqp_bounds, options=slsqp_options)
         print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
-        print('best-fit binary chisq:', op_slsqp.fun)
+        print('best-fit binary log(chisq):', op_slsqp.fun)
 
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_slsqp.x
@@ -235,9 +247,51 @@ class Spectrum(object):
             self.cannon_model)
         self.binary_model_residuals = self.flux - self.binary_model_flux
 
-        # compute metrics associated with best-fit labels
-        self.binary_fit_chisq = op_slsqp.fun
+        # chisq metrics associated with best-fit labels
+        self.binary_fit_chisq = 10**op_slsqp.fun # convert from log
         self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
+
+        # BIC of best-fit binary model evaluated at non-masked pixels
+        L_data_term = self.binary_model_residuals**2/self.err2
+        ln_L = (-1/2)*np.sum(L_data_term[self.mask] - self._L_err_term[self.mask])
+        self.binary_fit_BIC = len(self.binary_fit_cannon_labels)*np.log(self._n_pixels) - 2*ln_L
+        self.delta_BIC = self.fit_BIC - self.binary_fit_BIC
+
+        # TEMPORARY: plot for testing optimizer
+        if save_chisq_surface_to is not None:
+            # define parameter space to explore
+            teff1 = np.linspace(4200,7000,100)
+            teff_ratio = np.linspace(0.6,1,100)
+            param_ranges = (teff_ratio.min(), teff_ratio.max(), teff1.min(), teff1.max())
+
+            # array to store binary chisq values
+            binary_chisq = np.ones((len(teff1), len(teff_ratio)))
+            for i in range(len(teff1)):
+                for j in range(len(teff_ratio)):
+                    teff_params = (teff1[i], teff_ratio[j])
+                    chisq = residuals_wrapper(teff_params, self.wav, self.flux, self.cannon_model)
+                    binary_chisq[i,j] = chisq
+
+            # plot the surface and save to file
+            plt.figure(figsize=(10,7))
+            plt.imshow(np.log10(binary_chisq), 
+                       extent=param_ranges, 
+                       aspect='auto', origin='lower', 
+                       vmin=4.4,vmax=5, cmap='Spectral')
+            # optimizer outputs
+            plt.plot( 
+                self.binary_fit_cannon_labels[5]/self.binary_fit_cannon_labels[0], 
+                self.binary_fit_cannon_labels[0], 'w*', ms=15, mec='k')
+            # true minimum
+            teff1_min_idx, teff_ratio_min_idx = np.argwhere(binary_chisq == np.min(binary_chisq))[0]
+            plt.plot(teff_ratio[teff_ratio_min_idx], teff1[teff1_min_idx], 'b*', ms=15, mec='k')
+            # label axes + save figure
+            plt.colorbar(label=r'log $\chi^2_{\rm binary}$')
+            plt.xlabel('teff2/teff1');plt.ylabel('teff1 (K)')
+            plt.xlim(0.5,1)
+            figure_path = './data/binary_optimizer_validation_plots/{}.png'.format(save_chisq_surface_to)
+            plt.savefig(figure_path)
+            print('saved file to {}'.format(figure_path))
 
 
     # temporary function to visualize the fit
@@ -251,7 +305,7 @@ class Spectrum(object):
             ecolor='#E8E8E8', elinewidth=4, zorder=0, linewidth=2)
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8)
         plt.plot(self.wav, self.model_residuals-1, 'k-')
-        plt.axvspan(self.wav[self.mask][0], self.wav[self.mask][-1], 
+        plt.axvspan(self.wav[~self.mask][0], self.wav[~self.mask][-1], 
             alpha=0.2, color='lightgrey')
         plt.xlim(self.wav[0],self.wav[-1])
         plt.ylabel('normalized flux')
@@ -262,7 +316,7 @@ class Spectrum(object):
             ecolor='#E8E8E8', elinewidth=4, zorder=0, linewidth=2)
         plt.plot(self.wav, self.model_flux, 'r-', alpha=0.8)
         plt.plot(self.wav, self.model_residuals-1, 'k-')
-        plt.axvspan(self.wav[self.mask][0], self.wav[self.mask][-1], 
+        plt.axvspan(self.wav[~self.mask][0], self.wav[~self.mask][-1], 
             alpha=0.2, color='lightgrey')
         plt.xlim(zoom_min, zoom_max)
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
@@ -297,46 +351,6 @@ class Spectrum(object):
         plt.xlim(zoom_min, zoom_max)
         plt.xlabel('wavelength (angstrom)')
         plt.show()
-
-
-
-# optimizer test 1: q=1 binary KOI-289
-# import pandas as pd
-# import thecannon as tc
-# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-# model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-# order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
-# spec = Spectrum(
-#     binary_flux['K00289'], 
-#     binary_sigma['K00289'],
-#     order_numbers,
-#     model)
-# spec.fit_single_star()
-# t0=time.time()
-# spec.fit_binary()
-# print('total time = {} seconds'.format(time.time()-t0))
-#spec.plot_binary(zoom_min=6120, zoom_max=6150)
-
-# optimizer test 2: binary with Tseff2=3000-4200 prone to negative delta_chisq
-# import pandas as pd
-# import thecannon as tc
-# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-# model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-# order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
-# spec = Spectrum(
-#     binary_flux['K00387'], 
-#     binary_sigma['K00387'],
-#     order_numbers,
-#     model)
-# spec.fit_single_star()
-# t0=time.time()
-# spec.fit_binary()
-# print('total time = {} seconds'.format(time.time()-t0))
-# #spec.plot_binary(zoom_min=6120, zoom_max=6150)
-# print('single star chisq = {}'.format(spec.fit_chisq))
-# print('binary chisq = {}'.format(spec.binary_fit_chisq))
 
 
 

@@ -43,6 +43,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt',
         sigma_df = training_sigma_original
 
     # store training flux, sigma for selected orders
+    # note: for flux, sigma, we index at 1 to exclude order_number column
     training_flux_df = flux_df[flux_df['order_number'].isin(order_numbers)]
     training_sigma_df = sigma_df[sigma_df['order_number'].isin(order_numbers)]
     normalized_flux = training_flux_df.to_numpy()[:,1:].T

@@ -11,17 +11,17 @@ from specmatchemp.spectrum import read_hires_fits
 from specmatchemp import SPECMATCHDIR
 
 __all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass", 
-            "speed_of_light_kms", "wav_data", "mask_table_cut", 
-            "training_flux", "training_sigma", "binary_flux", "binary_sigma",
-            "adopted_model", "adopted_order_numbers"]
+            "speed_of_light_kms", "wav_data", "mask_table_cut"]#, 
+            # "training_flux", "training_sigma", "binary_flux", "binary_sigma",
+            # "adopted_model", "adopted_order_numbers"]
 
 # load data + inputs for Spectrum object
-training_flux = pd.read_csv('./data/cannon_training_data/training_flux_adopted_orders_dwt.csv')
-training_sigma = pd.read_csv('./data/cannon_training_data/training_sigma_adopted_orders_dwt.csv')
-binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
-binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
-adopted_model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-adopted_order_numbers = [i for i in range(1,17) if i not in [2,3,12]]
+# training_flux = pd.read_csv('./data/cannon_training_data/training_flux_adopted_orders_dwt.csv')
+# training_sigma = pd.read_csv('./data/cannon_training_data/training_sigma_adopted_orders_dwt.csv')
+# binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
+# binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
+# adopted_model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
+# adopted_order_numbers = [i for i in range(1,17) if i not in [2,3,12]]
 
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'

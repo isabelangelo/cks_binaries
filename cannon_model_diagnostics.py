@@ -1,7 +1,7 @@
 from astropy.io import fits
 from astropy.table import Table
 from spectrum import Spectrum
-from spectrum import tc 
+import thecannon as tc
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -48,7 +48,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
 		# define training set labels
 		cks_keys = ['cks_'+i for i in labels_to_plot]
 		cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
-		metric_keys = ['fit_chisq','training_density', 'binary_chisq', 'delta_chisq']
+		metric_keys = ['fit_chisq','training_density', 'binary_chisq', 'delta_chisq', 'delta_BIC']
 		vectorizer = tc.vectorizer.PolynomialVectorizer(cks_keys, 2)
 
 		# bin training data into 5 test sets
@@ -108,7 +108,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
 					keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
 					values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
 						+ [spec.fit_chisq, spec.training_density, spec.binary_fit_chisq, \
-						spec.delta_chisq]
+						spec.delta_chisq, spec.delta_BIC]
 				else:
 					keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys[:-2]
 					values = [id_starname, i] + cks_labels.tolist() + cannon_labels.tolist() \
