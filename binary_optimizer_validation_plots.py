@@ -15,6 +15,7 @@ order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
 #################### chisq surface plots to validate binary model ####################
 
 def save_chisq_surface(optimizer_str, id_starname, type='training'):
+	print(id_starname)
 	if type=='training':
 		spec = spectrum.Spectrum(
 		    training_flux[id_starname], 
@@ -30,23 +31,23 @@ def save_chisq_surface(optimizer_str, id_starname, type='training'):
 	spec.fit_single_star()
 	spec.fit_binary(save_chisq_surface_to=optimizer_str + '/' + id_starname)
 
-# # K01781: prone to delta_chisq<0 
-save_chisq_surface('slsqp', 'K01781', type='training')
+# K01781: prone to delta_chisq<0 
+save_chisq_surface('leastsq', 'K01781', type='training')
 
 # K00387: binary with Teff2=3000-4200 prone to delta_chisq<0 
-save_chisq_surface('slsqp', 'K01781', type='binary')
+save_chisq_surface('leastsq', 'K00387', type='binary')
 
 # KOI-289: q~1 binary
-save_chisq_surface('slsqp', 'K00289', type='binary')
+save_chisq_surface('leastsq', 'K00289', type='binary')
 
 # KOI-112: q~0.7 binary
-save_chisq_surface('slsqp', 'K00112', type='binary')
+save_chisq_surface('leastsq', 'K00112', type='binary')
 
 # KOI-1: training set star
-save_chisq_surface('slsqp', 'K00001', type='training')
+save_chisq_surface('leastsq', 'K00001', type='training')
 
 # KOI-41: training set star
-save_chisq_surface('slsqp', 'K00041', type='training')
+save_chisq_surface('leastsq', 'K00041', type='training')
 
 
 

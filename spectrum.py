@@ -160,15 +160,16 @@ class Spectrum(object):
             
             # prevent model from regions outside of Cannon training set
             if 4200>cannon_param1[0] or 7000<cannon_param1[0]:
-                return np.inf*np.ones(len(flux))
+                return np.inf*np.ones(len(flux[self.mask]))
             elif 4200>cannon_param2[0] or 7000<cannon_param2[0]:
-                return np.inf*np.ones(len(flux))
+                return np.inf*np.ones(len(flux[self.mask]))
             else:
                 # compute chisq
                 model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
                 resid = self.weights * (model - flux)
                 resid = resid[self.mask]
-                print(cannon_param1[0].round(2), (cannon_param2[0]/cannon_param1[0]).round(4), sum(resid**2))
+                #print(cannon_param1[0].round(2), (cannon_param2[0]/cannon_param1[0]).round(4), sum(resid**2))
+                #print(cannon_param1[0].round(2), (cannon_param2[0]/cannon_param1[0]).round(4), len(resid))
                 return resid
 
         # wrapper function to fix non-teff labels in brute search
@@ -195,13 +196,13 @@ class Spectrum(object):
         teff1_init, teff_ratio_init = op_brute
         print('time for brute search: {} seconds'.format(time.time()-t0_brute))
         print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
-        print('')
 
         # perform localized search at minimum from brute search
         t0_local = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff_ratio_init, logg_init, vsini_init, 0])
-        op_leastsq = leastsq(residuals, initial_labels, args=chisq_args, full_output=True, ftol=1e-4)
+        op_leastsq = leastsq(residuals, initial_labels, 
+            args=chisq_args, full_output=True, ftol=1e-6)
         print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
 
         # chisq metrics associated with best-fit labels
@@ -209,6 +210,7 @@ class Spectrum(object):
         self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
         print('best-fit single star chisq:', self.fit_chisq)
         print('best-fit binary chisq:', self.binary_fit_chisq)
+        print('')
 
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_leastsq[0]
@@ -252,16 +254,20 @@ class Spectrum(object):
                        aspect='auto', origin='lower', 
                        vmin=4.4,vmax=5, cmap='Spectral')
             # optimizer outputs
+            fit_label = 'optimizer, chisq={}'.format(int(self.binary_fit_chisq))
             plt.plot( 
                 self.binary_fit_cannon_labels[5]/self.binary_fit_cannon_labels[0], 
-                self.binary_fit_cannon_labels[0], 'w*', ms=15, mec='k')
+                self.binary_fit_cannon_labels[0], 'w*', ms=15, mec='k', label=fit_label)
             # true minimum
+            true_label = 'grid minimum, chisq={}\n single star chisq={}'.format(
+                int(np.min(binary_chisq)), int(self.fit_chisq))
             teff1_min_idx, teff_ratio_min_idx = np.argwhere(binary_chisq == np.min(binary_chisq))[0]
-            plt.plot(teff_ratio[teff_ratio_min_idx], teff1[teff1_min_idx], 'b*', ms=15, mec='k')
+            plt.plot(teff_ratio[teff_ratio_min_idx], teff1[teff1_min_idx], 'b*', ms=15, mec='k', label=true_label)
             # label axes + save figure
             plt.colorbar(label=r'log $\chi^2_{\rm binary}$')
             plt.xlabel('teff2/teff1');plt.ylabel('teff1 (K)')
-            plt.xlim(0.5,1)
+            plt.xlim(0.57,1)
+            plt.legend()
             figure_path = './data/binary_optimizer_validation_plots/{}.png'.format(save_chisq_surface_to)
             plt.savefig(figure_path)
             print('saved file to {}'.format(figure_path))

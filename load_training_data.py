@@ -77,9 +77,10 @@ cks_stars['cks_vsini'] = cks_stars['cks_vsini'].astype(float)
 # set nan vsini for cool stars to 2±2 km/s
 cks_stars = cks_stars.fillna(value={"cks_vsini": 2.0, "cks_vsini_err": 2.0})
 
-# temporary: remove stars from cks-cool
+# remove stars from cks-cool with teff<4200 
+# (we found this to be where the Cannon's quadratic assumption breaks down)
 cks_stars = cks_stars.query('cks_teff>=4200')
-print(len(cks_stars), ' after removing stars with Teff<4200 (TEMPORARY)')
+print(len(cks_stars), ' after removing stars with Teff<4200')
 
 # remove duplicate targets
 cks_stars = cks_stars.drop_duplicates('id_starname')
