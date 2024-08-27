@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.optimize import leastsq
 from scipy.optimize import brute
-from scipy.optimize import minimize
+from scipy.optimize import least_squares
 from spectrum_utils import *
 
 # for testing purposes
@@ -71,13 +71,7 @@ class Spectrum(object):
                 Returns:
                     resid (np.array): per pixel chi-squared
             """
-
-            # re-parameterize from log(vsini) to vsini for Cannon
-            cannon_param = param.copy()
-            cannon_param[-1] = 10**cannon_param[-1]
-
-            # compute chisq
-            model = self.cannon_model(cannon_param)
+            model = self.cannon_model(param)
             resid = self.weights * (model - self.flux)
             resid = resid[self.mask]
 
@@ -85,14 +79,10 @@ class Spectrum(object):
         
         # initial labels from cannon model
         initial_labels = self.cannon_model._fiducials.copy()
-        # re-parameterize from vsini to log(vsini) in optimizer
-        initial_labels[-1] = np.log10(initial_labels[-1]) 
         
         # perform fit
         result = leastsq(residuals,x0=initial_labels, full_output=True)
         self.fit_cannon_labels = result[0].copy()
-        # re-parameterize from log(vsini) to vsini
-        self.fit_cannon_labels[-1] = 10**self.fit_cannon_labels[-1] 
         
         # compute metrics associated with best-fit labels
         # note: I need to use the logvsini parameterization for chi-squared
@@ -134,11 +124,11 @@ class Spectrum(object):
         vsini_min, vsini_max = np.log10(label_arr[3].min()), np.log10(label_arr[3].max())
         teff_ratio_min, teff_ratio_max = 0.6,1
         rv_min, rv_max = -10, 10
-        slsqp_bounds = [(teff_min, teff_max), (logg_min, logg_max), 
+        local_op_bounds = [(teff_min, teff_max), (logg_min, logg_max), 
                            (feh_min, feh_max), (vsini_min, vsini_max), 
                            (rv_min, rv_max), (teff_ratio_min, teff_ratio_max), 
                            (logg_min, logg_max), (vsini_min, vsini_max), (rv_min, rv_max)]
-        slsqp_options = {'ftol':1e-7}
+        #slsqp_options = {'ftol':1e-7}
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
             """Calculate binary model associated with set of parameters
@@ -204,7 +194,8 @@ class Spectrum(object):
             """
             params = np.array([teff_params[0], logg_init, feh_init, vsini_init, 0, \
                       teff_params[1], logg_init, vsini_init, 0])
-            return residuals(params, wav, flux, cannon_model)
+            resid = residuals(params, wav, flux, cannon_model)
+            return resid
 
         # perform coarse brute search for ballpark teff1, teff_ratio
         # based on El-Badry 2018a Figure 2, 
