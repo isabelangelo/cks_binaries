@@ -62,7 +62,7 @@ cks_cool_stars = cks_cool_stars[cks_cool_cols_to_keep].rename(
     "smsyn_logg_err": "cks_logg_err",
     "smsyn_fe": "cks_feh",
     "smsyn_fe_err": "cks_feh_err",
-    "vsini": "cks_vsini"})
+    "smsyn_vsini": "cks_vsini"})
 cks_cool_stars['sample'] = ['cks-cool'] * len(cks_cool_stars)
 
 # combine samples for training set
