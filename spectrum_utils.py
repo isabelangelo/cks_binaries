@@ -70,11 +70,10 @@ teff2radius = interp1d(teff_pm2013[valid_mass], R_pm2013[valid_mass])
 teff2mass = interp1d(teff_pm2013[valid_mass], mass_pm2013[valid_mass])
 mass2teff = interp1d(mass_pm2013[valid_mass], teff_pm2013[valid_mass])
 
-# function to compute flux weights 
-# of primary, secondary in binary model
+####### functions to calculate binary model + associated chi-squared
+
 def flux_weights(teff1, teff2, wav):
-    """
-    Returns un-normalized relative fluxes,
+    """Returns un-normalized relative fluxes,
     based on blackbody curve * R^2
     """
     # blackbody functions
@@ -94,3 +93,5 @@ def flux_weights(teff1, teff2, wav):
     W2 = B2/B_sum
 
     return W1, W2
+
+

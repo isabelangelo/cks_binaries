@@ -106,29 +106,17 @@ class Spectrum(object):
         and chi-squared associated with best-fit binary model
         Asserts that the primary is the brighter star in the fit
         """
-        # pixel weights for chi-squared calculation
-        #weights = 1/np.sqrt(self.sigma_for_fit**2+self.cannon_model.s2)
-
         # initial conditions of binary set by single star
         # for labels other than Teff
         # note: we parameterize vsini in log space to avoid vsini<0
         teff_init, logg_init, feh_init, vsini_init = self.fit_cannon_labels
-        vsini_init = np.log10(vsini_init)
 
-        # define minima and maxima for local optimizer
+        # define minima and maxima for brute search
         # based on model interpolation bounds
         label_arr = self.cannon_model.training_set_labels.T
         teff_min, teff_max = label_arr[0].min(), label_arr[0].max()
-        logg_min, logg_max = label_arr[1].min(), label_arr[1].max()
-        feh_min, feh_max = label_arr[2].min(), label_arr[2].max()
-        vsini_min, vsini_max = np.log10(label_arr[3].min()), np.log10(label_arr[3].max())
-        teff_ratio_min, teff_ratio_max = 0.6,1
+        teff_ratio_min, teff_ratio_max = teff_min/teff_max, 1
         rv_min, rv_max = -10, 10
-        local_op_bounds = [(teff_min, teff_max), (logg_min, logg_max), 
-                           (feh_min, feh_max), (vsini_min, vsini_max), 
-                           (rv_min, rv_max), (teff_ratio_min, teff_ratio_max), 
-                           (logg_min, logg_max), (vsini_min, vsini_max), (rv_min, rv_max)]
-        #slsqp_options = {'ftol':1e-7}
 
         def binary_model(cannon_param1, cannon_param2, wav, cannon_model):
             """Calculate binary model associated with set of parameters
@@ -169,22 +157,19 @@ class Spectrum(object):
 
             # re-parameterize from teff2/teff1 to teff2
             cannon_param2[0] = cannon_param2[0]*cannon_param1[0]
-
-            # re-parameterize from log(vsini) to vsini for Cannon
-            cannon_param1[-2] = 10**cannon_param1[-2]
-            cannon_param2[-2] = 10**cannon_param2[-2]
-
+            
             # prevent model from regions outside of Cannon training set
             if 4200>cannon_param1[0] or 7000<cannon_param1[0]:
-                return np.inf
+                return np.inf*np.ones(len(flux))
             elif 4200>cannon_param2[0] or 7000<cannon_param2[0]:
-                return np.inf
+                return np.inf*np.ones(len(flux))
             else:
                 # compute chisq
                 model = binary_model(cannon_param1, cannon_param2, wav, cannon_model)
                 resid = self.weights * (model - flux)
-                sum_resid2 = sum(resid[self.mask]**2)
-                return sum_resid2
+                resid = resid[self.mask]
+                print(cannon_param1[0].round(2), (cannon_param2[0]/cannon_param1[0]).round(4), sum(resid**2))
+                return resid
 
         # wrapper function to fix non-teff labels in brute search
         def residuals_wrapper(teff_params, wav, flux, cannon_model):
@@ -194,8 +179,8 @@ class Spectrum(object):
             """
             params = np.array([teff_params[0], logg_init, feh_init, vsini_init, 0, \
                       teff_params[1], logg_init, vsini_init, 0])
-            resid = residuals(params, wav, flux, cannon_model)
-            return resid
+            sum_resid2 = sum(residuals(params, wav, flux, cannon_model)**2)
+            return sum_resid2
 
         # perform coarse brute search for ballpark teff1, teff_ratio
         # based on El-Badry 2018a Figure 2, 
@@ -210,22 +195,23 @@ class Spectrum(object):
         teff1_init, teff_ratio_init = op_brute
         print('time for brute search: {} seconds'.format(time.time()-t0_brute))
         print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
+        print('')
 
         # perform localized search at minimum from brute search
         t0_local = time.time()
         initial_labels = np.array([teff1_init, logg_init, feh_init, vsini_init, 0, \
                       teff_ratio_init, logg_init, vsini_init, 0])
-        op_slsqp = minimize(residuals, initial_labels, args=chisq_args, method='SLSQP', 
-                             bounds=slsqp_bounds, options=slsqp_options)
+        op_leastsq = leastsq(residuals, initial_labels, args=chisq_args, full_output=True, ftol=1e-4)
         print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
-        print('best-fit binary log(chisq):', op_slsqp.fun)
+
+        # chisq metrics associated with best-fit labels
+        self.binary_fit_chisq = sum(op_leastsq[2]['fvec']**2) # convert from log
+        self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
+        print('best-fit single star chisq:', self.fit_chisq)
+        print('best-fit binary chisq:', self.binary_fit_chisq)
 
         # compute labels, residuals of best-fit model
-        self.binary_fit_cannon_labels = op_slsqp.x
-
-        # re-parameterize from log(vsini) to vsini
-        self.binary_fit_cannon_labels[3] = 10**self.binary_fit_cannon_labels[3]
-        self.binary_fit_cannon_labels[7] = 10**self.binary_fit_cannon_labels[7]
+        self.binary_fit_cannon_labels = op_leastsq[0]
 
         # re-parameterize from teff2/teff1 to teff2
         self.binary_fit_cannon_labels[5] *= self.binary_fit_cannon_labels[0]
@@ -237,10 +223,6 @@ class Spectrum(object):
             self.wav, 
             self.cannon_model)
         self.binary_model_residuals = self.flux - self.binary_model_flux
-
-        # chisq metrics associated with best-fit labels
-        self.binary_fit_chisq = 10**op_slsqp.fun # convert from log
-        self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
 
         # BIC of best-fit binary model evaluated at non-masked pixels
         L_data_term = self.binary_model_residuals**2/self.err2
