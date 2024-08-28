@@ -94,7 +94,6 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
 				sigma = 1/np.sqrt(ivar)
 
 				# fit cross validation mdoel to data
-				print(spectrum_idx, end=', ')
 				spec = Spectrum(
 					flux, 
 					sigma, 

@@ -159,7 +159,7 @@ print('{} CKS targets ({} <0.8" companions) from Kraus 2016 saved to .csv'.forma
 kolbl2015_companions = pd.merge(k15_tbl, kolbl2015_binaries)
 trimmed(kolbl2015_companions).to_csv(
     label_path+'/kolbl2015_binary_labels.csv', index=False)
-print('{} CKS targets ({} SB2 copmanions) from Kolbl 2015 saved to .csv'.format(
+print('{} CKS targets ({} SB2 companions) from Kolbl 2015 saved to .csv'.format(
     len(kolbl2015_binaries), len(kolbl2015_companions)))
 
 # ============ write training flux, sigma to files  ================================================
