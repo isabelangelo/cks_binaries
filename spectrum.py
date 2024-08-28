@@ -232,6 +232,12 @@ class Spectrum(object):
         self.binary_fit_BIC = len(self.binary_fit_cannon_labels)*np.log(self._n_pixels) - 2*ln_L
         self.delta_BIC = self.fit_BIC - self.binary_fit_BIC
 
+        # fractional improvement parameter
+        # see El-Badry et al. (2018)
+        f_imp_numerator = (abs(self.model_residuals) - abs(self.binary_model_residuals))/self.sigma
+        f_imp_denominator = abs(self.model_flux - self.binary_model_flux)/self.sigma
+        self.f_imp = sum(f_imp_numerator[self.mask])/sum(f_imp_denominator[self.mask])
+
         # TEMPORARY: plot for testing optimizer
         if save_chisq_surface_to is not None:
             # define parameter space to explore

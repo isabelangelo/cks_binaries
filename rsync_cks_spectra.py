@@ -21,6 +21,7 @@ print(len(cks_main_stars), ' after removing KOI-02864 due to processing errors')
 
 # table with CKS-cool stars
 cks_cool_stars = pd.read_csv('./data/literature_data/CKS-cool_Spectroscopic_Parameters.csv')
+cks_cool_stars['id_obs'] = cks_cool_stars['id_obs'].apply(lambda x: 'r' + x) # rename to match cks stars
 min_teff = 4200 # lowest Teff where Cannon quadratic assumption holds
 max_teff = cks_main_stars['Teff'].min()
 cks_cool_stars = cks_cool_stars.query('smsyn_teff<@max_teff & smsyn_teff>@min_teff')
