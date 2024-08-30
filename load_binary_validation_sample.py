@@ -24,7 +24,7 @@ import dwt
 
 print('saving single star sample...')
 # training set stars
-training_set = pd.read_csv('./data/label_dataframes/training_labels.csv')
+training_set = pd.read_csv('./data/cannon_models/rchip/adopted_orders_dwt/cannon_labels.csv')
 
 # full sample from Kraus 2016
 kraus2016_full_sample = pd.read_csv('./data/literature_data/Kraus2016/Kraus2016_Table1.csv', delim_whitespace=True)
@@ -39,6 +39,8 @@ print('{} training set stars from Kraus 2016 sample with no <0.8arcsec companion
 kraus2016_singles_filename = './data/metric_dataframes/kraus2016_single_metrics.csv'
 kraus2016_singles.to_csv(kraus2016_singles_filename)
 print('')
+
+import pdb;pdb.set_trace()
 
 # ============== load binaries from Kraus 2016, Kolbl 2015 ==========================================
 
