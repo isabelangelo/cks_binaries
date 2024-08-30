@@ -1,13 +1,46 @@
 """
-Loads labels + HIRES spectra for the Cannon training and test sets.
+Loads labels + HIRES spectra for the binary and single star validation sets.
+
+(1) saves metrics for subset of training set stars that are likely single
+	*these stars were part of the Kraus 2016 survey, but no unresolved (<0.8arcsec)
+	companion was identified.
+(2) saves spectra + metrics for all binaries from Kraus 2016 + Kolbl 2015
+(3) sorts binaries into three categories based on which Cannon model should perform best:
+	- "binary": Teff2=4200-7000K (training set range), binary model should perform best
+	- "single": Teff2<3300 (below noise floor), single model should perform best
+	- "neither": Teff2=3300-4200K, neither model should perform well
+
 """
 from specmatchemp.spectrum import read_hires_fits
 from specmatchemp.spectrum import read_fits
 from spectrum import Spectrum
+import spectrum_utils
 import thecannon as tc
 import pandas as pd
 import numpy as np
 import dwt
+
+# ============== save metrics for single star validaiton sample ======================================
+
+print('saving single star sample...')
+# training set stars
+training_set = pd.read_csv('./data/label_dataframes/training_labels.csv')
+
+# full sample from Kraus 2016
+kraus2016_full_sample = pd.read_csv('./data/literature_data/Kraus2016/Kraus2016_Table1.csv', delim_whitespace=True)
+kraus2016_full_sample .insert(1,'id_starname', [i.replace('KOI-', 'K0') for i in kraus2016_full_sample ['KOI']])
+print('{} stars in full Kraus 2016 sample (Table 1)'.format(len(kraus2016_full_sample)))
+
+# stars from training set in Kraus 2016 sample
+kraus2016_singles = training_set[training_set['id_starname'].isin(kraus2016_full_sample['id_starname'])]
+print('{} training set stars from Kraus 2016 sample with no <0.8arcsec companion'.format(len(kraus2016_singles)))
+
+# save to .csv
+kraus2016_singles_filename = './data/metric_dataframes/kraus2016_single_metrics.csv'
+kraus2016_singles.to_csv(kraus2016_singles_filename)
+print('')
+
+# ============== load binaries from Kraus 2016, Kolbl 2015 ==========================================
 
 # define paths to spectrum files + labels
 df_path = './data/spectrum_dataframes'
@@ -121,5 +154,101 @@ metric_df = pd.DataFrame(metric_data)
 metric_path = 'data/metric_dataframes/known_binary_metrics.csv'
 metric_df.to_csv(metric_path)
 print('known binary metrics saved to {}'.format(metric_path))
+print('')
 
+
+# ============== sort binaries based on secondary Teff ========================================================
+
+print('sorting binaries into categories based on secondary Teff..')
+# sort Kolbl companions based on their temperatures
+kolbl2015_companions = kolbl2015_binaries.rename(columns={'Teff_A':'teff1', 'Teff_B':'teff2'})
+kolbl2015_companions['companion_type'] = np.nan
+kolbl2015_companions.loc[(kolbl2015_companions.teff2>=4200),'companion_type'] = 'A'
+kolbl2015_companions.loc[(kolbl2015_companions.teff2>=3000) & (kolbl2015_companions.teff2<4200),'companion_type'] = 'B'
+kolbl2015_companions.loc[(kolbl2015_companions.teff2<3000),'companion_type'] = 'C'
+
+# sort the kraus companions based on their temperature
+# note: I am loading the original table here because I need the m2 information for 
+# every companion in cases where a single star has multiple companions
+kraus2016_companions = pd.read_csv('./data/literature_data/Kraus2016/Kraus2016_Table7.csv', delim_whitespace=True)
+kraus2016_companions['m1'] = kraus2016_companions['m2']/kraus2016_companions['q']
+kraus2016_companions['teff1'] = [spectrum_utils.mass2teff(i).item() for i in kraus2016_companions['m1']]
+kraus2016_companions['teff2'] = [spectrum_utils.mass2teff(i).item() for i in kraus2016_companions['m2']]
+kraus2016_companions['companion_type'] = np.nan
+kraus2016_companions.loc[(kraus2016_companions.teff2>=4200),'companion_type'] = 'A'
+kraus2016_companions.loc[(kraus2016_companions.teff2>=3000) & (kraus2016_companions.teff2<4200),'companion_type'] = 'B'
+kraus2016_companions.loc[(kraus2016_companions.teff2<3000),'companion_type'] = 'C'
+
+# sort binaries into whether they are well-fit by binary model, 
+# single star model, or neither
+metric_df.insert(1, 'model_type', np.nan)
+binary_data = []
+
+for id_starname in metric_df.id_starname:
+    
+    # names for cross-matching across datasets
+    kolbl_koi = int(id_starname.replace('K0',''))
+    kraus_koi = id_starname.replace('K0', 'KOI-')
+
+    # lists to store companion information
+    pairs = []; pair_info = []
+    
+    # companions from Kolbl 2015
+    if kolbl_koi in kolbl2015_companions.KOI.to_numpy():
+        companions_df = kolbl2015_companions[kolbl2015_companions.KOI==kolbl_koi]
+        for i in range(len(companions_df)):
+            row = companions_df.iloc[i]
+            pairs.append(row.companion_type)
+            pair_info.append((id_starname, int(row.teff1), int(row.teff2)))
+    else:
+        pass
+    
+    # companions from Kraus 2016
+    if kraus_koi in kraus2016_companions.KOI.to_numpy():
+        companions_df = kraus2016_companions[kraus2016_companions.KOI==kraus_koi]
+        for i in range(len(companions_df)):
+            row = companions_df.iloc[i]
+            pairs.append(row.companion_type)
+            pair_info.append((id_starname, int(row.teff1), int(row.teff2)))
+    else:
+        pass
+
+    # sorting pairs into category
+    pairs = list(set(pairs))
+    pair_info = list(set(pair_info))
+    if len(pairs)==0:
+        model_type = 'NaN'
+    elif pairs.count('A')==1 and pairs.count('B')==0:
+        model_type = 'binary'
+    elif pairs.count('B')>0:
+        model_type = 'neither'
+    elif pairs.count('A')==0 and pairs.count('B')==0:
+        model_type = 'single'
+    else:
+        print('NEEDS CATEGORY')
+    
+    for pair in pair_info:
+        keys = ['id_starname', 'teff1','teff2', 'model_type']
+        values = list(pair) + [model_type]
+        binary_data.append(dict(zip(keys, values)))
+    # add type to binary metric dataframe
+    metric_df.loc[metric_df.id_starname==id_starname, 'model_type'] = model_type
+
+# sort binaries into categories and store
+single_model_binaries = metric_df.query('model_type=="single"')
+binary_model_binaries = metric_df.query('model_type=="binary"')
+neither_model_binaries = metric_df.query('model_type=="neither"')
+
+print(len(metric_df), ' stars with 1+ companion in sample')
+print(len(single_model_binaries), ' should be well-fit by the single star model (companions are too faint, Teff<3000K)')
+print(len(binary_model_binaries), ' should be well-fit by binary model (just one companion with Teff=4200-7000K)')
+print(len(neither_model_binaries), ' should poorly fit by both models (1+ star with Teff=3000-4200K)')
+
+# store to dataframes
+single_model_binaries.to_csv('./data/metric_dataframes/single_model_binary_metrics.csv')
+binary_model_binaries.to_csv('./data/metric_dataframes/binary_model_binary_metrics.csv')
+neither_model_binaries.to_csv('./data/metric_dataframes/neither_model_binary_metrics.csv')
+
+print('categories saved to separate dataframes')
+print('')
 

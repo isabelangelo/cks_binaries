@@ -9,7 +9,7 @@ from scipy.optimize import least_squares
 from spectrum_utils import *
 
 # for testing purposes
-import time
+# import time
 
 class Spectrum(object):
     """
@@ -187,15 +187,15 @@ class Spectrum(object):
         # based on El-Badry 2018a Figure 2, 
         # teff1 is bound by the training set, teff_ratio=0-1
         # but we return chisq=inf for teff2 outside training set
-        t0_brute = time.time()
+        #t0_brute = time.time()
         teff_ranges = (
             slice(teff_min, teff_max, 100), # teff1
             slice(teff_ratio_min, teff_ratio_max, 0.01)) # teff_ratio
         chisq_args = (self.wav, self.flux, self.cannon_model)
         op_brute = brute(residuals_wrapper, teff_ranges, chisq_args, finish=None) 
         teff1_init, teff_ratio_init = op_brute
-        print('time for brute search: {} seconds'.format(time.time()-t0_brute))
-        print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
+        #print('time for brute search: {} seconds'.format(time.time()-t0_brute))
+        #print('from brute search, teff1={}K, teff2/teff1={}'.format(teff1_init, teff_ratio_init))
 
         # perform localized search at minimum from brute search
         t0_local = time.time()
@@ -203,14 +203,14 @@ class Spectrum(object):
                       teff_ratio_init, logg_init, vsini_init, 0])
         op_leastsq = leastsq(residuals, initial_labels, 
             args=chisq_args, full_output=True, ftol=1e-6)
-        print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
+        #print('time for local optimizer: {} seconds'.format(time.time()-t0_local))
 
         # chisq metrics associated with best-fit labels
         self.binary_fit_chisq = sum(op_leastsq[2]['fvec']**2) # convert from log
         self.delta_chisq = self.fit_chisq - self.binary_fit_chisq
-        print('best-fit single star chisq:', self.fit_chisq)
-        print('best-fit binary chisq:', self.binary_fit_chisq)
-        print('')
+        #print('best-fit single star chisq:', self.fit_chisq)
+        #print('best-fit binary chisq:', self.binary_fit_chisq)
+        #print('')
 
         # compute labels, residuals of best-fit model
         self.binary_fit_cannon_labels = op_leastsq[0]
