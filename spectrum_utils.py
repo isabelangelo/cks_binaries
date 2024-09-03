@@ -21,7 +21,7 @@ __all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass",
 # binary_flux = pd.read_csv('./data/spectrum_dataframes/known_binary_flux_dwt.csv')
 # binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.csv')
 # adopted_model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-# adopted_order_numbers = [i for i in range(1,17) if i not in [2,3,12]]
+# adopted_order_numbers = [i for i in range(1,17) if i not in [2,12]]
 
 # load wavelength data
 reference_w_filename = './data/cannon_training_data/cannon_reference_w.fits'

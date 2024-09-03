@@ -9,7 +9,7 @@ from scipy.optimize import least_squares
 from spectrum_utils import *
 
 # for testing purposes
-# import time
+import time
 
 class Spectrum(object):
     """

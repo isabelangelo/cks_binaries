@@ -1,5 +1,6 @@
 from astropy.table import Table
 from astropy.io import fits
+from shutil import copyfile
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -101,8 +102,17 @@ adopted_orders = [i for i in np.arange(1,17,1).tolist() if i not in [2,12]]
 train_cannon_model(adopted_orders, 'adopted_orders_dwt', save_training_data=True, save_binary_metrics=True)
 train_cannon_model(adopted_orders, 'adopted_orders_original', filter_type='original')
 
-
-
-
+# copy training set data to adopted orders directory
+# to be used in iterative cleaning.
+adopted_order_path = './data/cannon_models/rchip/adopted_orders_dwt/'
+copyfile(
+    training_data_path+'training_flux_adopted_orders_dwt.csv',
+    adopted_order_path+'training_flux.csv')
+copyfile(
+    training_data_path+'training_sigma_adopted_orders_dwt.csv',
+    adopted_order_path+'training_sigma.csv')
+copyfile(
+    './data/label_dataframes/training_labels.csv',
+    adopted_order_path+'training_labels.csv')
 
 
