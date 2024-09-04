@@ -11,9 +11,6 @@ import os
 # file with order stats
 order_data_path = './data/cannon_models/rchip/rchip_order_stats.csv'
 
-# dataframe with trainig labels + object names
-training_label_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
-
 # create file if it doesn't already exist
 if os.path.exists(order_data_path)==False:
 	empty_order_df = pd.DataFrame({'model': [],'label':[],'bias': [],'rms': []})
@@ -32,7 +29,8 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
     	order_numbers (list): numbers for HIRES r chip orders in model 
                       		e.g., [1,2,6,15,16]
     	order number (int) : number of HIRES r chip spectrum order (1-17)
-    	label_df (pd.Dataframe) : training labels of sample to plot (n_objects x n_labels)
+    	label_df (pd.Dataframe) : training labels of sample to plot (number of rows=n_objects, 
+    						must contain column for each label + column for object id_starname 
     	figure_path (str) : full path to save plot to 
     	model_suffix (str) : string associated with model to go in filenames
     	save_binary_metrics : if True, saves binary metric statsitcs to .csv fit cannon labels
@@ -86,7 +84,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
 			# store labels, flux + sigma for left out targets
 			for spectrum_idx in range(start_idx, stop_idx):
 				# load object name from training label dataframe
-				id_starname = training_label_df.iloc[spectrum_idx].id_starname
+				id_starname = label_df.iloc[spectrum_idx].id_starname
 				# load object labels, flux, ivar from saved model data
 				cks_labels = model_to_validate.training_set_labels[spectrum_idx]
 				flux = model_to_validate.training_set_flux[spectrum_idx]

@@ -60,8 +60,8 @@ def clean(model_path_iter_n, iter_n_plus_1):
 		len(normalized_flux_iter_n_plus_1)))
 
 	# index training labels of stars to keep for next iteration
-	training_set_iter_n_plus_1 = training_set_table_iter_n[training_set_table_iter_n.id_starname.isin(stars_to_keep)]
-	training_set_iter_n_plus_1 = Table.from_pandas(training_set_iter_n_plus_1[training_labels])
+	training_set_iter_n_plus_1_table = training_set_table_iter_n[training_set_table_iter_n.id_starname.isin(stars_to_keep)]
+	training_set_iter_n_plus_1 = Table.from_pandas(training_set_iter_n_plus_1_table[training_labels])
 
 	# Create the model that will run in parallel using all available cores.
 	model_iter_n_plus_1 = tc.CannonModel(
@@ -76,7 +76,7 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	# compute binary detection metrics for training set stars
 	plot_one_to_one_leave1out(
 	    adopted_order_numbers, 
-	    training_set_iter_n_plus_1.to_pandas(), 
+	    training_set_iter_n_plus_1_table, 
 	    model_path_iter_n_plus_1 + 'one_to_one.png',
 	    model_suffix_iter_n_plus_1,
 	    save_binary_metrics=save_True)
@@ -96,17 +96,14 @@ def clean(model_path_iter_n, iter_n_plus_1):
 n_plus_1 = 1
 while n_binaries>0:
 
-	# first iteration: path to original model
+	# store path to model of previous iteration
 	if n_plus_1 == 1:
 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt/'
-	# successive iterations: path to model iteration
 	else: 
 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt_iter{}/'.format(n_plus_1)
-
-	# clean model
+	
+	# clean model + update iteration number
 	clean(model_path_iter_n)
-
-	# update iteration number
 	n_plus_1 += 1
 
 

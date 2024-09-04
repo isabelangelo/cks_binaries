@@ -81,7 +81,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt',
     training_df_path = './data/cks-spectra_dataframes/'
     plot_one_to_one_leave1out(
         order_numbers, 
-        training_set.to_pandas(), 
+        training_set_table, 
         model_path + 'one_to_one.png',
         model_suffix,
         save_binary_metrics=save_binary_metrics)
