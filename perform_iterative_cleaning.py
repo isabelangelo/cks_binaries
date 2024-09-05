@@ -37,12 +37,12 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	# computed during leave-20%-out validaion
 	normalized_flux_iter_n = pd.read_csv(model_path_iter_n + 'training_flux.csv')
 	normalized_sigma_iter_n= pd.read_csv(model_path_iter_n + 'training_sigma.csv')
-	training_set_table_iter_n = pd.read_csv(model_path_iter_n + 'training_labels.csv')
+	training_labels_iter_n = pd.read_csv(model_path_iter_n + 'training_labels.csv')
 	training_metrics_iter_n = pd.read_csv(model_path_iter_n + 'cannon_labels.csv')
 
 	# create directory for next model iteration
-	model_suffix_iter_n_plus_1 = 'adopted_orders_dwt_iter_{}'.format(iter_n)
-	model_path_iter_n_plus_1 = model_path.replace('adopted_orders_dwt', model_suffix_iter_n_plus_1)
+	model_suffix_iter_n_plus_1 = 'adopted_orders_dwt_iter_{}'.format(iter_n_plus_1)
+	model_path_iter_n_plus_1 = model_path_iter_n.replace('adopted_orders_dwt', model_suffix_iter_n_plus_1)
 	os.mkdir(model_path_iter_n_plus_1)
 
 	# query stars to keep (i.e., stars that are not recovered by
@@ -60,64 +60,69 @@ def clean(model_path_iter_n, iter_n_plus_1):
 		len(normalized_flux_iter_n_plus_1)))
 
 	# index training labels of stars to keep for next iteration
-	training_set_iter_n_plus_1_table = training_set_table_iter_n[training_set_table_iter_n.id_starname.isin(stars_to_keep)]
-	training_set_iter_n_plus_1 = Table.from_pandas(training_set_iter_n_plus_1_table[training_labels])
+	training_labels_iter_n_plus_1_table = training_labels_iter_n[training_labels_iter_n.id_starname.isin(stars_to_keep)]
+	training_labels_iter_n_plus_1 = Table.from_pandas(training_labels_iter_n_plus_1_table[training_labels])
 
 	# Create the model that will run in parallel using all available cores.
 	model_iter_n_plus_1 = tc.CannonModel(
-		training_set_iter_n_plus_1, 
+		training_labels_iter_n_plus_1, 
 		normalized_flux_iter_n_plus_1, 
 		normalized_ivar_iter_n_plus_1,
 		vectorizer=vectorizer)
 
 	# train model
 	model_iter_n_plus_1.train()
+	# store model
+	model_iter_n_plus_1.write(model_path_iter_n_plus_1 + 'cannon_model.model', 
+		include_training_set_spectra=True, 
+		overwrite=True)
 
 	# compute binary detection metrics for training set stars
 	plot_one_to_one_leave1out(
 	    adopted_order_numbers, 
-	    training_set_iter_n_plus_1_table, 
+	    training_labels_iter_n_plus_1_table, 
 	    model_path_iter_n_plus_1 + 'one_to_one.png',
 	    model_suffix_iter_n_plus_1,
-	    save_binary_metrics=save_True)
+	    save_binary_metrics=True)
 
-	# store model + training data for next iteration
-	model.write(model_path_iter_n_plus_1 + 'cannon_model.model', 
-		include_training_set_spectra=True, 
-		overwrite=True)
+	# training data for next iteration
 	training_flux[stars_to_keep].to_csv(model_path_iter_n_plus_1 + 'training_flux.csv')
 	training_sigma[stars_to_keep].to_csv(model_path_iter_n_plus_1 + 'training_sigma.csv')
-	training_set_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_labels.csv')
+	training_labels_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_labels.csv')
 
 
-# iteratively clean models
-# update n_binaries with each successive model
-# and terminate when no binaries are found in the training set
-n_plus_1 = 1
-while n_binaries>0:
+# TEST: perform a single iteration
+clean('./data/cannon_models/rchip/adopted_orders_dwt/', 1)
 
-	# store path to model of previous iteration
-	if n_plus_1 == 1:
-		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt/'
-	else: 
-		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt_iter{}/'.format(n_plus_1)
+
+# # iteratively clean models
+# # update n_binaries with each successive model
+# # and terminate when no binaries are found in the training set
+# n_plus_1 = 1
+# while n_binaries>0:
+
+# 	# store path to model of previous iteration
+# 	if n_plus_1 == 1:
+# 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt/'
+# 	else: 
+# 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt_iter{}/'.format(n_plus_1)
 	
-	# clean model + update iteration number
-	clean(model_path_iter_n)
-	n_plus_1 += 1
+# 	# clean model + update iteration number
+# 	clean(model_path_iter_n)
+# 	n_plus_1 += 1
 
 
-# save cleaned model + associated data files
-copyfile(
-	model_path_iter_n+'training_flux.csv', 
-	'./data/cannon_training_data/training_flux_adopted_orders_dwt_cleaned.csv')
-copyfile(
-	model_path_iter_n+'training_sigma.csv', 
-	'./data/cannon_training_data/training_sigma_adopted_orders_dwt_cleaned.csv')
-copyfile(
-	model_path_iter_n+'training_labels.csv', 
-	'./data/label_dataframes/training_labels_cleaned.csv')
-os.path.rename(model_path_iter_n, './data/cannon_models/rchip/adopted_orders_dwt_cleaned')
+# # save cleaned model + associated data files
+# copyfile(
+# 	model_path_iter_n+'training_flux.csv', 
+# 	'./data/cannon_training_data/training_flux_adopted_orders_dwt_cleaned.csv')
+# copyfile(
+# 	model_path_iter_n+'training_sigma.csv', 
+# 	'./data/cannon_training_data/training_sigma_adopted_orders_dwt_cleaned.csv')
+# copyfile(
+# 	model_path_iter_n+'training_labels.csv', 
+# 	'./data/label_dataframes/training_labels_cleaned.csv')
+# os.path.rename(model_path_iter_n, './data/cannon_models/rchip/adopted_orders_dwt_cleaned')
 
 
 

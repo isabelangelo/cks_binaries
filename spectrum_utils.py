@@ -11,9 +11,7 @@ from specmatchemp.spectrum import read_hires_fits
 from specmatchemp import SPECMATCHDIR
 
 __all__ = ["initial_teff_arr", "flux_weights", "teff2radius", "teff2mass", 
-            "speed_of_light_kms", "wav_data", "mask_table_cut"]#, 
-            # "training_flux", "training_sigma", "binary_flux", "binary_sigma",
-            # "adopted_model", "adopted_order_numbers"]
+            "speed_of_light_kms", "wav_data", "mask_table_cut"]
 
 # load data + inputs for Spectrum object
 # training_flux = pd.read_csv('./data/cannon_training_data/training_flux_adopted_orders_dwt.csv')

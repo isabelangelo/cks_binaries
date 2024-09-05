@@ -43,6 +43,7 @@ class Spectrum(object):
         for n, row in mask_table_cut.iterrows():
             start = row['minw']
             end = row['maxw']
+            #import pdb;pdb.set_trace()
             self.mask[(self.wav>start) & (self.wav<end)] = False
         
         # store cannon model information
@@ -306,35 +307,105 @@ class Spectrum(object):
         plt.xlim(zoom_min, zoom_max)
         plt.xlabel('wavelength (angstrom)');plt.ylabel('normalized flux')
 
-    def plot_binary(self, zoom_min=5150, zoom_max=5190):
-        # TO DO: add telluric mask to plot
+    def plot_binary(self):
+        
+        # compute best-fit models
         self.fit_single_star()
         self.fit_binary()
+        
+        # sigma to plot telluric lines
+        self.sigma_for_plot = self.sigma.copy()
+        self.sigma_for_plot[~self.mask] = 3
+
         # create figure
-        plt.figure(figsize=(10,7))
-        plt.rcParams['font.size']=10
-        # top panel: spectrum with single star, binary fits
-        plt.subplot(311);plt.ylabel('wavelet-filtered\nflux')
-        plt.plot(self.wav, self.flux, 'k-', label='data')
-        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
-        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
-        plt.legend(ncols=3, loc='upper left')
-        # middel panel: spectrum with single star, binary fits, zoomed in
-        plt.subplot(312);plt.ylabel('wavelet-filtered\nflux')
-        plt.plot(self.wav, self.flux, 'k-', label='data')
-        plt.plot(self.wav, self.model_flux, 'r-', alpha=0.7, label='best-fit single star')
-        plt.plot(self.wav, self.binary_model_flux, 'c-', alpha=0.7, label='best-fit binary')
-        plt.legend(ncols=3, loc='upper left')
-        plt.xlim(zoom_min, zoom_max);plt.ylim(-0.7,0.4)
-        # middle panel: residuals of single star, binary fits, zoomed in
-        plt.subplot(313);plt.ylabel('residuals')
-        single_resid = 'single fit\n'+'$\chi^2$={}'.format(int(self.fit_chisq))
-        binary_resid = 'binary fit\n'+'$\chi^2$={}'.format(int(self.binary_fit_chisq))
-        plt.plot(self.wav, self.model_residuals, 'r-', alpha=0.7, label=single_resid)
-        plt.plot(self.wav, self.binary_model_residuals, 'c-', alpha=0.7, label=binary_resid)
-        plt.legend(ncols=2, labelcolor='linecolor', loc='lower left')
-        plt.xlim(zoom_min, zoom_max)
-        plt.xlabel('wavelength (angstrom)')
+        fig = plt.figure(constrained_layout=True, figsize=(13,13))
+        gs = fig.add_gridspec(4, 3, wspace = 0, hspace = 0)
+        gs.update(hspace=0)
+        plt.rcParams['figure.dpi']=150
+
+        # set keywork arguements for different objects
+        data_kwgs = {'color':'k', 'ecolor':'#E8E8E8', 'linewidth':1.75, 'elinewidth':4, 'zorder':0}
+        single_fit_kwgs = {'color':'b', 'ls':'-', 'alpha':0.7}
+        binary_fit_kwgs = {'color':'r', 'ls':'-', 'alpha':0.7}
+        training_label_kwgs = {'color':'lightgrey', 'marker':'o', 'linestyle':'None'}
+        label_kwgs = {'color':'r', 'marker':'*', 'ms':15, 'mec':'k', 'mew':1.5}
+        binary_label_kwgs = {'color':'b', 'marker':'o', 'ms':5, 'mec':'k', 'mew':1.5}
+        binary_fit_label = r'best-fit binary ($\Delta$RV={}km/s)'.format(
+            abs(self.binary_fit_cannon_labels[4]-self.binary_fit_cannon_labels[-1]).round(1))
+
+        # function to plot full spectrum + best-fit models
+        def plot_spectrum(ax):
+            ax.errorbar(self.wav, self.flux + 1, self.sigma_for_plot, **data_kwgs)
+            ax.plot(self.wav, self.model_flux + 1, **single_fit_kwgs, label='best fit single star')
+            ax.plot(self.wav, self.binary_model_flux + 1, **binary_fit_kwgs, 
+                    label=binary_fit_label)
+            ax.plot(self.wav, self.model_residuals, **single_fit_kwgs)
+            ax.plot(self.wav, self.binary_model_residuals, **binary_fit_kwgs)
+            ax.set_ylabel('scaled flux')
+            ax.set_ylim(-0.25,1.4)
+
+
+        # spectrum plots - full model + residuals
+        ax1 = fig.add_subplot(gs[0,0:2])
+        plot_spectrum(ax1)
+        ax1.set_xlim(self.wav[0], self.wav[-1])
+        ax1.legend(loc='upper center', frameon=False, ncol=2)
+
+        ax2 = fig.add_subplot(gs[1,0:2])
+        plot_spectrum(ax2)
+        ax2.set_xlim(5160, 5190)
+
+        ax3 = fig.add_subplot(gs[2,0:2])
+        plot_spectrum(ax3)
+        ax3.set_xlim(5545, 5575)
+
+        ax4 = fig.add_subplot(gs[3,0:2])
+        plot_spectrum(ax4)
+        ax4.set_xlim(6120, 6150)
+        ax4.set_xlabel('wavelength (angstrom)')
+
+
+        # training set distributions
+        # training set HR diagram
+        ax5 = fig.add_subplot(gs[0,2])
+        ax5.plot(self.cannon_model.training_set_labels[:, 0], 
+                 self.cannon_model.training_set_labels[:, 1],
+                 **training_label_kwgs)
+        ax5.plot(self.fit_cannon_labels[0], 
+                 self.fit_cannon_labels[1],
+                 **label_kwgs)
+        ax5.plot(self.binary_fit_cannon_labels[0], 
+                 self.binary_fit_cannon_labels[1],
+                 **binary_label_kwgs)
+        ax5.plot(self.binary_fit_cannon_labels[5], 
+                 self.binary_fit_cannon_labels[6],
+                 **binary_label_kwgs)
+        ax5.set_xlim(7000,4200);ax5.set_xlabel('Teff (K)')
+        ax5.set_ylim(5,2.2);ax5.set_ylabel('logg (dex)')
+        # training set Fe/H, vsini
+        ax6 = fig.add_subplot(gs[1,2])
+        ax6.plot(self.cannon_model.training_set_labels[:, 2], 
+                 self.cannon_model.training_set_labels[:, 3],
+                 **training_label_kwgs)
+        ax6.plot(self.fit_cannon_labels[2], 
+                 self.fit_cannon_labels[3],
+                 **label_kwgs)
+        ax6.plot(self.binary_fit_cannon_labels[2], 
+                 self.binary_fit_cannon_labels[3],
+                 **binary_label_kwgs)
+        ax6.plot(self.binary_fit_cannon_labels[2], 
+                 self.binary_fit_cannon_labels[7],
+                 **binary_label_kwgs)
+        ax6.set_xlabel('Fe/H (dex)')
+        ax6.set_ylabel('vsini (km/s)')
+        # single star delta_BIC distribution
+        ax7 = fig.add_subplot(gs[2,2])
+        #ax7.hist(metric_df.delta_BIC, bins=np.linspace(-1e2, 2e4, 30), color='k', histtype='step')
+        ax7.axvline(self.delta_BIC, color='r')
+        ax7.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax7.set_xlabel(r'$\Delta$BIC')
+        ax7.text(0.5e4, 20, 'single star sample')
+        
         plt.show()
 
 
