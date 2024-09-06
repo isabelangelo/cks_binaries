@@ -35,8 +35,8 @@ def clean(model_path_iter_n, iter_n_plus_1):
     """
 	# load training data + binary detection metrics
 	# computed during leave-20%-out validaion
-	normalized_flux_iter_n = pd.read_csv(model_path_iter_n + 'training_flux.csv')
-	normalized_sigma_iter_n= pd.read_csv(model_path_iter_n + 'training_sigma.csv')
+	normalized_flux_iter_n_df = pd.read_csv(model_path_iter_n + 'training_flux.csv')
+	normalized_sigma_iter_n_df = pd.read_csv(model_path_iter_n + 'training_sigma.csv')
 	training_labels_iter_n = pd.read_csv(model_path_iter_n + 'training_labels.csv')
 	training_metrics_iter_n = pd.read_csv(model_path_iter_n + 'cannon_labels.csv')
 
@@ -50,9 +50,13 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	stars_to_keep = training_metrics_iter_n.query('delta_BIC<@delta_BIC_threshold').id_starname.to_numpy()
 	n_binaries = len(training_metrics_iter_n) - len(stars_to_keep)
 
+	# generate flux, sigma dataframes
+	normalized_flux_iter_n_plus_1_df = normalized_flux_iter_n_df[stars_to_keep]
+	normalized_sigma_iter_n_plus_1_df = normalized_sigma_iter_n_df[stars_to_keep]
+
 	# index flux, sigma of of stars to keep for next iteration 
-	normalized_flux_iter_n_plus_1 = normalized_flux_iter_n[stars_to_keep].to_numpy().T
-	normalized_sigma_iter_n_plus_1 = normalized_sigma_iter_n[stars_to_keep].to_numpy().T
+	normalized_flux_iter_n_plus_1 = normalized_flux_iter_n_plus_1_df.to_numpy().T
+	normalized_sigma_iter_n_plus_1 = normalized_sigma_iter_n_plus_1_df.to_numpy().T
 	normalized_ivar_iter_n_plus_1 = 1/normalized_sigma_iter_n_plus_1**2
 	print('iteration {}: {} binaries removed, {} stars in final training set'.format(
 		iter_n_plus_1,
@@ -60,8 +64,8 @@ def clean(model_path_iter_n, iter_n_plus_1):
 		len(normalized_flux_iter_n_plus_1)))
 
 	# index training labels of stars to keep for next iteration
-	training_labels_iter_n_plus_1_table = training_labels_iter_n[training_labels_iter_n.id_starname.isin(stars_to_keep)]
-	training_labels_iter_n_plus_1 = Table.from_pandas(training_labels_iter_n_plus_1_table[training_labels])
+	training_labels_iter_n_plus_1_df = training_labels_iter_n[training_labels_iter_n.id_starname.isin(stars_to_keep)]
+	training_labels_iter_n_plus_1 = Table.from_pandas(training_labels_iter_n_plus_1_df[training_labels])
 
 	# Create the model that will run in parallel using all available cores.
 	model_iter_n_plus_1 = tc.CannonModel(
@@ -80,14 +84,14 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	# compute binary detection metrics for training set stars
 	plot_one_to_one_leave1out(
 	    adopted_order_numbers, 
-	    training_labels_iter_n_plus_1_table, 
+	    training_labels_iter_n_plus_1_df, 
 	    model_path_iter_n_plus_1 + 'one_to_one.png',
 	    model_suffix_iter_n_plus_1,
 	    save_binary_metrics=True)
 
 	# training data for next iteration
-	training_flux[stars_to_keep].to_csv(model_path_iter_n_plus_1 + 'training_flux.csv')
-	training_sigma[stars_to_keep].to_csv(model_path_iter_n_plus_1 + 'training_sigma.csv')
+	normalized_flux_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_flux.csv')
+	normalized_sigma_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_sigma.csv')
 	training_labels_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_labels.csv')
 
 

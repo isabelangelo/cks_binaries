@@ -12,8 +12,8 @@ from cannon_model_diagnostics import *
 training_labels = ['cks_teff', 'cks_logg', 'cks_feh','cks_vsini']
 
 # Load the table containing the training set labels
-training_labels_table = Table.read('./data/label_dataframes/training_labels.csv', format='csv')
-training_labels = training_labels_table[training_labels]
+training_labels_df = pd.read_csv('./data/label_dataframes/training_labels.csv')
+training_labels = Table.from_pandas(training_labels_table[training_labels])
 
 # Load the dataframe containing the training set flux, sigma
 training_data_path = './data/cannon_training_data/'
@@ -81,7 +81,7 @@ def train_cannon_model(order_numbers, model_suffix, filter_type='dwt',
     training_df_path = './data/cks-spectra_dataframes/'
     plot_one_to_one_leave1out(
         order_numbers, 
-        training_labels_table, 
+        training_labels_df, 
         model_path + 'one_to_one.png',
         model_suffix,
         save_binary_metrics=save_binary_metrics)
