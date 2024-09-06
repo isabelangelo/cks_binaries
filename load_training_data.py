@@ -131,8 +131,12 @@ print(len(cks_stars), ' after removing stars with processing errors')
 
 # ============ write tables to files  =========================================
 
+
+# shuffle cks + cks-cool sample
+# this step ensures models in leave-20%-out span similar label spaces
+training_labels = trimmed(cks_stars).sample(frac=1) 
 # write to .csv file
-trimmed(cks_stars).to_csv(label_path+'/training_labels.csv', index=False)
+training_labels.to_csv(label_path+'/training_labels.csv', index=False)
 print('training labels saved to .csv file')
 
 # write binaries to file, perserving the source information

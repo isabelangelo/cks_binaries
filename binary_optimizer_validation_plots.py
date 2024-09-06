@@ -10,7 +10,7 @@ binary_sigma = pd.read_csv('./data/spectrum_dataframes/known_binary_sigma_dwt.cs
 
 # model, order numbers for spectrum object
 model = tc.CannonModel.read('./data/cannon_models/rchip/adopted_orders_dwt/cannon_model.model')
-order_numbers = [i for i in range(1,17) if i not in (2,3,12)]
+order_numbers = [i for i in range(1,17) if i not in (2,12)]
 
 #################### chisq surface plots to validate binary model ####################
 

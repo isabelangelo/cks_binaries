@@ -15,7 +15,7 @@ import os
 # label + spectrum order information to train model
 training_labels = ['cks_teff', 'cks_logg', 'cks_feh','cks_vsini']
 vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
-adopted_order_numbers = [i for i in range(1,17) if i not in [2,3,12]]
+adopted_order_numbers = [i for i in range(1,17) if i not in [2,12]]
 delta_BIC_threshold = 250 # conservative binary detection threshold
 n_binaries = np.inf # intialize non-zero number for iterative cleaning
 
