@@ -30,7 +30,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
                       		e.g., [1,2,6,15,16]
     	order number (int) : number of HIRES r chip spectrum order (1-17)
     	label_df (pd.Dataframe) : training labels of sample to plot (number of rows=n_objects, 
-    						must contain column for each label + column for object id_starname 
+    						must contain column for each label + column for object id_starname) 
     	figure_path (str) : full path to save plot to 
     	model_suffix (str) : string associated with model to go in filenames
     	save_binary_metrics : if True, saves binary metric statsitcs to .csv fit cannon labels
@@ -39,7 +39,7 @@ def plot_one_to_one_leave1out(order_numbers, label_df, figure_path,
 	labels_to_plot = ['teff', 'logg', 'feh', 'vsini']
 
 	# compute model to validate based on order number
-	model_dir = './data/cannon_models/rchip/{}/'.format(model_suffix)
+	model_dir = './data/cannon_models/rchip/{}'.format(model_suffix)
 	model_to_validate = tc.CannonModel.read(model_dir+'cannon_model.model')
 
 	def compute_cannon_labels():

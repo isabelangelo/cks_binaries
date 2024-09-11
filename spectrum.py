@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import astropy.units as u
 import astropy.constants as c
 import matplotlib.pyplot as plt
@@ -10,6 +11,16 @@ from spectrum_utils import *
 
 # for testing purposes
 import time
+
+# label names + metrics for saving data
+cks_keys = ['cks_teff', 'cks_logg', 'cks_feh', 'cks_vsini']
+cannon_keys = [i.replace('cks', 'cannon') for i in cks_keys]
+metric_keys = ['fit_chisq','training_density', 'binary_chisq', \
+                'delta_chisq', 'delta_BIC', 'f_imp']
+
+# dataframe with single star sample metrics
+# (I will eventually replace this with the Raghavan sample)
+metric_df = pd.read_csv('./data/metric_dataframes/kraus2016_single_metrics.csv')
 
 class Spectrum(object):
     """
@@ -319,7 +330,7 @@ class Spectrum(object):
 
         # create figure
         fig = plt.figure(constrained_layout=True, figsize=(13,13))
-        gs = fig.add_gridspec(4, 3, wspace = 0, hspace = 0)
+        gs = fig.add_gridspec(4, 3)
         gs.update(hspace=0)
         plt.rcParams['figure.dpi']=150
 
@@ -357,7 +368,7 @@ class Spectrum(object):
 
         ax3 = fig.add_subplot(gs[2,0:2])
         plot_spectrum(ax3)
-        ax3.set_xlim(5545, 5575)
+        ax3.set_xlim(5620, 5670)
 
         ax4 = fig.add_subplot(gs[3,0:2])
         plot_spectrum(ax4)
@@ -400,13 +411,89 @@ class Spectrum(object):
         ax6.set_ylabel('vsini (km/s)')
         # single star delta_BIC distribution
         ax7 = fig.add_subplot(gs[2,2])
-        #ax7.hist(metric_df.delta_BIC, bins=np.linspace(-1e2, 2e4, 30), color='k', histtype='step')
+        ax7.hist(metric_df.delta_BIC, bins=np.linspace(-1e2, 2e4, 30), color='k', histtype='step')
         ax7.axvline(self.delta_BIC, color='r')
         ax7.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         ax7.set_xlabel(r'$\Delta$BIC')
         ax7.text(0.5e4, 20, 'single star sample')
         
         plt.show()
+
+
+# def leave1out_labels_and_metrics(
+#     model_to_validate, model_leave1out, test_number, order_numbers, spectrum_idx, label_df, save_binary_metrics):
+#     """
+#     Wrapper function for Spectrum.fit_binary()for stars in leave-20%-out validation. 
+#     The spectrum is fit with a modelthat does not inclde that spectrum 
+#     in its training set.
+
+#     Args:
+#         model_to_validate (tc.CannonModel): cannon model for leave-20%-out
+#         model_leave1out (tc.CannonModel): cannon model trained on 80% of model_to_validate,
+#                             excluding spectrum of interest
+#         test_number (int): number associated with model_leave1out (for example, 0 denotes 
+#                             cannon model with first 20% of objects held out, 1 denotes
+#                             cannon model with second 20% of objects held out, etc.)
+#         order_numbers (list):numbers for HIRES r chip orders in model 
+#                             e.g., [1,2,6,15,16]
+#         spectrum_idx (int): index of model_to_validate.training_set_flux corresponding to 
+#                             spectrum of interest
+#         label_df (pd.DataFrame): training labels of sample to plot (number of rows=n_objects, 
+#                             must contain column for each label + column for object id_starname,
+#                             order of rows must match order of spectra in 
+#                             model_to_validate.training_set_flux
+#         save_binary_metrics (bool): if True, saves binary metric statsitcs to 
+#                             .csv fit cannon labels
+
+#     Returns:
+#         labels_and_metrics (dict): labels and metrics for spectrum of interest. 
+#                             If save_binary_metrics=True, this contains the binary detection 
+#                             statistics for the spectrum. If false, it just contains
+#                             best-fit Cannon labels and single star fit metrics.
+
+#     """
+#     # load object name from training label dataframe
+#     id_starname = label_df.iloc[spectrum_idx].id_starname
+#     print(id_starname)
+
+#     # load object labels, flux, ivar from saved model data
+#     cks_labels = model_to_validate.training_set_labels[spectrum_idx]
+#     flux = model_to_validate.training_set_flux[spectrum_idx]
+#     ivar = model_to_validate.training_set_ivar[spectrum_idx]
+#     sigma = 1/np.sqrt(ivar)
+
+#     # fit cross validation mdoel to data
+#     spec = Spectrum(
+#         flux, 
+#         sigma, 
+#         order_numbers, 
+#         model_leave1out)
+#     spec.fit_single_star()
+#     cannon_labels = spec.fit_cannon_labels
+
+#     # store metrics for one2one plot + validation
+#     if save_binary_metrics:
+#         spec.fit_binary()
+#         keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys
+#         values = [id_starname, test_number] + cks_labels.tolist() + cannon_labels.tolist() \
+#             + [spec.fit_chisq, spec.training_density, spec.binary_fit_chisq, \
+#             spec.delta_chisq, spec.delta_BIC, spec.f_imp]
+#     else:
+#         keys = ['id_starname', 'test_number'] + cks_keys + cannon_keys + metric_keys[:-2]
+#         values = [id_starname, test_number] + cks_labels.tolist() + cannon_labels.tolist() \
+#             + [spec.fit_chisq, spec.training_density]
+
+#     labels_and_metrics = dict(zip(keys, values))
+        
+#     # save to dataframe
+#     return labels_and_metrics
+
+
+
+
+
+
+
 
 
 

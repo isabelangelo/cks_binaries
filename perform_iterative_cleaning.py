@@ -15,7 +15,7 @@ import os
 # label + spectrum order information to train model
 training_labels = ['cks_teff', 'cks_logg', 'cks_feh','cks_vsini']
 vectorizer = tc.vectorizer.PolynomialVectorizer(training_labels, 2)
-adopted_order_numbers = [i for i in range(1,17) if i not in [2,12]]
+adopted_order_numbers = [i for i in range(1,17) if i not in [8, 11, 16]]
 delta_BIC_threshold = 250 # conservative binary detection threshold
 n_binaries = np.inf # intialize non-zero number for iterative cleaning
 
@@ -41,8 +41,8 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	training_metrics_iter_n = pd.read_csv(model_path_iter_n + 'cannon_labels.csv')
 
 	# create directory for next model iteration
-	model_suffix_iter_n_plus_1 = 'adopted_orders_dwt_iter_{}'.format(iter_n_plus_1)
-	model_path_iter_n_plus_1 = model_path_iter_n.replace('adopted_orders_dwt', model_suffix_iter_n_plus_1)
+	model_suffix_iter_n_plus_1 = 'adopted_orders_dwt_iter{}'.format(iter_n_plus_1)
+	model_path_iter_n_plus_1 = './data/cannon_models/rchip/{}'.format(model_suffix_iter_n_plus_1)
 	os.mkdir(model_path_iter_n_plus_1)
 
 	# query stars to keep (i.e., stars that are not recovered by
@@ -89,44 +89,42 @@ def clean(model_path_iter_n, iter_n_plus_1):
 	    model_suffix_iter_n_plus_1,
 	    save_binary_metrics=True)
 
+	import pdb;pdb.set_trace()
+
 	# training data for next iteration
-	normalized_flux_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_flux.csv')
-	normalized_sigma_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_sigma.csv')
-	training_labels_iter_n_plus_1.to_csv(model_path_iter_n_plus_1 + 'training_labels.csv')
+	normalized_flux_iter_n_plus_1_df.to_csv(model_path_iter_n_plus_1 + 'training_flux.csv')
+	normalized_sigma_iter_n_plus_1_df.to_csv(model_path_iter_n_plus_1 + 'training_sigma.csv')
+	training_labels_iter_n_plus_1_df.to_csv(model_path_iter_n_plus_1 + 'training_labels.csv')
 
 
-# TEST: perform a single iteration
-clean('./data/cannon_models/rchip/adopted_orders_dwt/', 1)
+# iteratively clean models
+# update n_binaries with each successive model
+# and terminate when no binaries are found in the training set
+n_plus_1 = 1
+while n_binaries>0:
 
-
-# # iteratively clean models
-# # update n_binaries with each successive model
-# # and terminate when no binaries are found in the training set
-# n_plus_1 = 1
-# while n_binaries>0:
-
-# 	# store path to model of previous iteration
-# 	if n_plus_1 == 1:
-# 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt/'
-# 	else: 
-# 		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt_iter{}/'.format(n_plus_1)
+	# store path to model of previous iteration
+	if n_plus_1 == 1:
+		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt/'
+	else: 
+		model_path_iter_n = './data/cannon_models/rchip/adopted_orders_dwt_iter{}/'.format(n_plus_1 - 1)
 	
-# 	# clean model + update iteration number
-# 	clean(model_path_iter_n)
-# 	n_plus_1 += 1
+	# clean model + update iteration number
+	clean(model_path_iter_n, n_plus_1)
+	n_plus_1 += 1
 
 
-# # save cleaned model + associated data files
-# copyfile(
-# 	model_path_iter_n+'training_flux.csv', 
-# 	'./data/cannon_training_data/training_flux_adopted_orders_dwt_cleaned.csv')
-# copyfile(
-# 	model_path_iter_n+'training_sigma.csv', 
-# 	'./data/cannon_training_data/training_sigma_adopted_orders_dwt_cleaned.csv')
-# copyfile(
-# 	model_path_iter_n+'training_labels.csv', 
-# 	'./data/label_dataframes/training_labels_cleaned.csv')
-# os.path.rename(model_path_iter_n, './data/cannon_models/rchip/adopted_orders_dwt_cleaned')
+# save cleaned model + associated data files
+copyfile(
+	model_path_iter_n+'training_flux.csv', 
+	'./data/cannon_training_data/training_flux_adopted_orders_dwt_cleaned.csv')
+copyfile(
+	model_path_iter_n+'training_sigma.csv', 
+	'./data/cannon_training_data/training_sigma_adopted_orders_dwt_cleaned.csv')
+copyfile(
+	model_path_iter_n+'training_labels.csv', 
+	'./data/label_dataframes/training_labels_cleaned.csv')
+os.path.rename(model_path_iter_n, './data/cannon_models/rchip/adopted_orders_dwt_cleaned')
 
 
 

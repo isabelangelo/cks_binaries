@@ -166,10 +166,10 @@ def single_order_training_data(order_idx, filter_wavelets=True):
     sigma_list = []
 
     # get order data for all stars in training set
-    for i in range(len(cks_stars)):
+    for i in range(len(training_labels)):
 
         # load file data
-        row = cks_stars.iloc[i]
+        row = training_labels.iloc[i]
         filename = '{}/{}_adj.fits'.format(
             shifted_path,  
             row.obs_id) # .replace('rj','ij')) # for i chip
